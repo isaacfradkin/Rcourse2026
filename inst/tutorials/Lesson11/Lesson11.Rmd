@@ -1,0 +1,844 @@
+---
+title: "Lesson 11: correlations"
+author: "Copyright 2024 Psychology Department. Hebrew University of Jerusalem. All rights reserved"
+output:
+  learnr::tutorial:
+    progressive: true
+    allow_skip: false
+  
+
+description: >
+  <div style='direction: rtl;'>
+  בשיעור זה נלמד איך לבצע מבחן קורלציות, לבדוק את מובהקותו, להתאים מודל לינארי ולהציג את הנתונים בצורה גרפית
+  </div>
+runtime: shiny_prerendered
+---
+
+<style>
+h1, h2, h3, h4, h5, h6 {
+  direction: rtl;
+}
+p {
+  direction: rtl;
+}
+</style>
+
+
+<!-- tutorial options and checking options  -->
+```{r setup, include=FALSE}
+library(learnr)
+library(gradethis)
+library(Rcourse)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(ggcheck)
+library(ggcorrplot)
+set.seed(1)
+single_subject_wellbeing_2021$age <- sample(c(18:75), nrow(single_subject_wellbeing_2021), replace = TRUE)
+
+# combained data for ex 3
+# Number of samples for each group
+n <- 1000  
+
+# Generate low-experienced wellbeing (uniformly distributed)
+low_experienced_wellbeing <- runif(n, min = 20, max = 40)
+
+# Generate low household income (uniformly distributed)
+low_household_income <- runif(n, min = 0, max = 2000000)
+
+# Ensure correlation is close to 0
+cor(low_experienced_wellbeing, low_household_income)  # Should be near 0
+
+# Generate high-experienced wellbeing (uniformly distributed)
+high_experienced_wellbeing <- runif(n, min = 80, max = 100)
+
+# Generate high household income with a strong correlation (~0.9)
+rho <- 0.9  # Desired correlation
+noise <- rnorm(n, mean = 0, sd = 200000)  # Some noise
+high_household_income <- (high_experienced_wellbeing - mean(high_experienced_wellbeing)) * 
+                         (2000000 / (100 - 80)) * rho + 1000000 + noise  # Scaling to match income range
+
+# Ensure high correlation
+cor(high_experienced_wellbeing, high_household_income)  # Should be ~0.9
+
+# Combine into a data frame
+single_subject_wellbeing_combained <- data.frame(
+  low_experienced_wellbeing,
+  low_household_income,
+  high_experienced_wellbeing,
+  high_household_income
+)
+
+##### פונקציה לבדיקה
+exercises_df = data.frame(exercises = c("cor_ex", "cor_mat_ex", "corr_table_question", "cor_mat_q", "cor_test_q", "cor_test_ex", "final_ex_1", "final_ex_2", "final_ex_3"), 
+  hebrew = c("תרגיל - קורלציה"
+             , "תרגיל - טבלת קורלציות"
+             , "1 שאלה - טבלת קורלציה"
+             , "2 שאלה - טבלת קורלציה"
+             , "שאלה - מובהקות קורלציה"
+             , "תרגיל - מובהקות הקורלציה"
+             , "תרגיל מסכם 1"
+             , "תרגיל מסכם 2"
+             , "תרגיל מסכם 3"))
+
+set.seed(1)
+single_subject_wellbeing_2021$age <- sample(c(18:75), nrow(single_subject_wellbeing_2021), replace = TRUE)
+
+
+# combained data for ex 3
+# Number of samples for each group
+n <- 1000  
+
+# Generate low-experienced wellbeing (uniformly distributed)
+low_experienced_wellbeing <- runif(n, min = 20, max = 40)
+
+# Generate low household income (uniformly distributed)
+low_household_income <- runif(n, min = 0, max = 2000000)
+
+# Ensure correlation is close to 0
+cor(low_experienced_wellbeing, low_household_income)  # Should be near 0
+
+# Generate high-experienced wellbeing (uniformly distributed)
+high_experienced_wellbeing <- runif(n, min = 80, max = 100)
+
+# Generate high household income with a strong correlation (~0.9)
+rho <- 0.9  # Desired correlation
+noise <- rnorm(n, mean = 0, sd = 200000)  # Some noise
+high_household_income <- (high_experienced_wellbeing - mean(high_experienced_wellbeing)) * 
+                         (2000000 / (100 - 80)) * rho + 1000000 + noise  # Scaling to match income range
+
+# Ensure high correlation
+cor(high_experienced_wellbeing, high_household_income)  # Should be ~0.9
+
+# Combine into a data frame
+single_subject_wellbeing_combained <- data.frame(
+  low_experienced_wellbeing,
+  low_household_income,
+  high_experienced_wellbeing,
+  high_household_income
+)
+
+##### פונקציה לבדיקה
+exercises_df = data.frame(exercises = c("cor_ex", "cor_mat_ex", "cor_mat_q", "cor_test_q", "cor_test_ex", "final_ex_1", "final_ex_2", "final_ex_3"), hebrew = c("תרגיל - קורלציה", "תרגיל - טבלת קורלציות", "שאלה - טבלת קורלציה", "שאלה - מובהקות קורלציה", "תרגיל - מובהקות הקורלציה", "תרגיל מסכם 1", "תרגיל מסכם 2", "תרגיל מסכם 3"))
+
+check_hash_code   = function(hash){
+    exercises = exercises_df$exercises
+    response_table = learnrhash::decode_obj(hash)
+    if (length(response_table)==0){return("Invalid hash code")}
+    correct = response_table %>% filter(label %in% exercises, correct) %>% pull(label)
+    incorrect = setdiff(exercises, correct)
+    if (length(incorrect) == 0){return("Great work! Hash code is valid")}
+    else{
+      hebrew = exercises_df  %>% filter(exercises %in% incorrect) %>%pull(hebrew)
+      print("The following exercises are missing or incorrect:")
+      print(hebrew)
+    }
+
+} 
+
+knitr::opts_chunk$set(error = TRUE)
+gradethis::gradethis_setup()
+
+```
+
+## מבוא
+
+היום אנחנו נלמד כיצד לבחון מגמות לינאריות בנתונים שלנו. תזכורת, מגמה לינארית מתארת מצב בו הקשר בין שני משתנים (למשל רמת העושר והכנסה) יכול להיות מתוארת על ידי קו ישר (למשל, ככל שההכנסה גבוהה יותר כך גם רמת העושר). 
+בשיעור סטטיסיטקה עסקתם בנושא הקשר הלינארי בסמסטר הקודם. כדי לחבר אתכם לחומר התיאורטי נזכיר כי המושגים הרלוונטיים לקשר לינארי הם:  
+מתאם (למשל מתאם פירסון)  
+מבחן רגרסיה (ניבוי של משתנה אחד ממשתנים אחרים)   
+נלמד היום איך לבצע את שני סוגי המבחנים בR ואיך לפרש מתוצאותיהם עד להבין עד עד כמה מתקיים קשר לינארי בין שני משתנים והאם קשר זה מובהק.
+
+### היכרות עם הנתונים
+בחלק זה אנחנו נעבוד עם סיכום של נתוני מדגם אמיתי אשר בחן את הקשר בין מרכיבים שונים של אושר - למשל, סיפוק מהחיים, השראה, כמות הרגשות הטובים, כמות הרגשות הרעים, גאווה, עניין, שיעמום, בטחון עצמי, לחץ ואופטימיות. 
+
+המשתתפים בניסוי ענו על שאלות בנידון על בסיס יומי לאורך תקופה מסוימת. במהלך התקופה הם דרגו כל מרכיב בין 1-100. בנתונים שלנו (income_wellbeing) נמצאים הממוצעים של תשובות המשתתפים מקובצים לפי רמת ההכנסה (באלפי דולרים לשנה), כך שכל תצפית היא בעצם ממוצע של בתוך משתתף (על פני מספר הפעמים שנדגם) ובין המשתתפים השונים באותה רמת הכנסה (houshold_income). בנוסף יש לנו מספר נתונים דמוגרפיים ונתונים על היחס של המשתתפים לכסף.
+
+הנתונים הללו נלקחו ממדגם אמיתי
+
+מקורות:
+Experienced well-being rises with income, even above $75,000 per year  
+
+(Matt Killingsworth)
+ובהמשך נגיע גם ל:  
+High income improves evaluation of life but not emotional well-being  
+
+(Daniel Kahanman)  
+
+```{r}
+# נתבונן בנתונים
+head(income_wellbeing)
+
+```
+
+
+## קורלציה
+כדי לחשב קורלציה אנחנו נשתמש בפונקציה`cor`.  
+הפונקציה מחשבת קורלציה בין שני וקטורים עם אותה כמות של ערכים.
+אלו הם הארגומנטים שהפונקציה מקבלת:  
+`x` - וקטור הנתונים הראשון.    
+`y` - וקטור הנתונים השני.  
+* במקום שני וקטורים ניתן גם להכניס טבלה שמכילה רק שתי עמודות מספריות.  
+`method` - השיטה לחישוב הקורלציה. ברירת המחדל היא קורלציית פירסון אבל ניתן לחשב גם קורלציית ספירמן עלי ידי הכנסת הביטוי "spearman".   
+`use` - איזה תצפיות יכנסו לניתוח, בהקשר של ערכים חסרים.     
+
+הארגומנט use דומה מאוד לארגומנט na.rm שהכרנו בהקשר של פונקציות קודמות. כלומר, השימוש העיקרי שלו היא התמודדות עם ערכים חסרים.    
+אבל יש קצת יותר אפשרויות במקרה של קורלציה כיוון שהתצפיות תמיד מזווגת.    אפשרות ברירת המחדל של הארגומנט use היא ”everything“, אשר מקבילה לna.rm=FALSE, האפשרות בקצה השני היא ”pairwise.complete.obs“, בה משתמשים רק בזוגות של תצפיות ששתיהן ערכים מספריים. יש עוד אפשרויות להתמודדות עם ערכין חסרים, שכרגע לא ניכנס אליהן.  
+
+
+בואו נחשב קצת קורלציות. 
+
+```{r}
+# אז מבחינה של השאלון
+# האם יש קשר בין סיפוק מהחיים ואושר?
+# היינו מצפים לקשר חיובי בואו נראה
+cor1 = cor(x=income_wellbeing$experienced_wellbeing, y=income_wellbeing$life_satisfaction)
+
+cor1
+# קיבלנו ערך גבוה מאוד. נראה כי אכן אלה תופעות קשורות.
+# עכשיו נבחן את הקשר בין רגשות חיובים לשליליים
+cor2 = cor(x=income_wellbeing$good, y=income_wellbeing$bad)
+
+cor2
+
+# עכשיו קיבלנו ערך גבוה מאוד ושלילי
+# כלומר התופעות קשורות בקשר חזק ושלילי.
+
+```
+
+`תרגיל`  
+
+בואו ניגש ישר לעניין, האם כסף קונה עושר?  
+חשבו את הקורלציה בין רמת ההכנסה (household_income) לרמת האושר (experienced_wellbeing) והדפיסו אותה
+
+```{r cor_ex, exercise=TRUE, exercise.eval = FALSE,exercise.reveal_solution = FALSE}
+
+main_cor <-
+
+```
+
+```{r cor_ex-solution}
+main_cor = cor(x=income_wellbeing$household_income, y=income_wellbeing$experienced_wellbeing)
+
+print(main_cor)
+```
+
+```{r cor_ex-check}
+grade_result(pass_if(~identical(.result,
+                     cor(x=income_wellbeing$experienced_wellbeing, y=income_wellbeing$household_income))),
+  
+    correct="מצוין! קיבלנו קורלציה של מעל 0.7. כלומר עושר ואושר משתנים יחדיו. אל דאגה, לא סיימנו פה, יש עוד הרבה תובנות שנוכל לקבל מהנתונים.", 
+  incorrect = "נסו שוב! וודאו שהשתמשתם במשתנים הנכונים מתוך הטבלה"
+)
+```
+
+### טבלת קורלציה
+הפונקציה cor מספקת לנו גם דרך נוחה לחשב מסה של קורלציות יחדיו. 
+למשל במדגם הנוכחי יש לנו הרבה מידע על תחושות שונות שאמורות לאמוד משתנה תיאורטי אחד. כלומר, תחושת אושר היא מושג מאוד מעורפל אשר מורכבת מאוסף של תחושות שונות. למשל, נצפה שמי שמאושר יותר ירגיש גם יותר סיפוק מהחיים שלו ויותר רגשות חיוביים. נצפה אולי גם שאנשים מאושרים יותר ירגישו פחות עצב ופחות שיעמום ועוד.  
+כדי להבין שאכן נאמד במדגם המשתנה התיאורטי של אושר, נרצה לראות איך הוא משתנה יחד עם התחושות האחרות. כך בעצם נוכל לתקף את השאלון שלנו ולהבין שהוא אומד את מה שרצינו שיאמוד.  
+היינו יכולים לבדוק תכונה תכונה, אבל זה יקח הרבה זמן, אז פשוט נחשב את הקורלציות של כל שאלות השאלון יחד. 
+
+```{r, fig.width=8, fig.height=8}
+# ניצור טבלה חדשה רק עם שאלות השאלון
+well_being_df <- select(income_wellbeing, -household_income, -money_importance, -money_is_succes, -workweek, -p_of_male, -p_married, -education_level,-age)
+
+# נחשב את טבלת הקורלציות
+well_being_corr_matrix <- cor(well_being_df)
+print(well_being_corr_matrix)
+```
+
+הדפסנו פה טבלה עצומה שמכילה המון מידע. הטבלה בעצם מכילה את כל המשתנים שכנסנו לניתוח פעמיים, פעם אחד כעמודות ופעם שניה כשורות. 
+
+כך שאם נתבונן בערך שנמצא בשורה השניה של העמודה הראשונה (0.97) נמצא את הקורלציה בין סיפוק מהחיים לאושר (שחישבנו מוקדם יותר).  
+כפועל יוצא מהמבנה של הטבלה, היא גם כוללת את הקורלציה של כל משתנה עם עצמו (שתמיד תהיה שווה ל1).  
+כמו כן, אפשר להתרשם מכך השטבלה היא סימטרית, כיוון שכל המשתנים נמצאים גם כשורה וגם כטור היא כוללת את הקורלציה בין משתנה א' למשתנה ב' וגם את הקולציה בין משתנה ב' למשתנה א' (שתי אלה כמובן זהות ושוות).  
+מרגישים שקצת קשה להסיק מידע מהטבלה? צודקים, ולכן נפנה פה להצגה גרפית,  נוכל להציג את הטבלה כאשר ערכי הקורלציה יוצגו בצבע כדי לעזור לנו להתרשם מהמגמות הכלליות.  
+לטובת איור זה נשתמש בחבילה חדשה, שגם שייכת לקבוצת החבילות של ggplot.  
+שימו לב שעל מנת להשתמש בה בRstudio תצטרכו להתקין אותה ולייבא אותה (כמו בדוגמה למטה) בכל פעם שתרצו להשתמש בה.  
+בקוד למטה מודגמת לכם יצירת טבלת קורלציות באמצעות הפונקציה `ggcorrplot`.
+
+```{r, fig.width=8, fig.height=8}
+# נציג אותה כאיור
+# שימו לב מדובר בחבילה חדשה לטובת איור זה
+library(ggcorrplot)
+ggcorrplot(well_being_corr_matrix, lab = TRUE)
+
+```
+
+עכשיו אנחנו רואים פה את אותה טבלה, רק שקורלציות חיוביות נצבעות באדום (ככל שהוא יותר אדום כך הקורלציה יותר חיובית) ושליליות בכחול, ראו את המקרא בצד. ערכים שקרובים ל0 נצבעים בלבן.   
+מה ניתן להסיק ממנה? נראה שהשאלון שלנו אכן מתנהג כמו שהיינו מצפים - גורמים חיוביים, שהיינו מצפים שיהיו מקושרים לרמת אושר גבוהה (למשל בטחון,עניין, סיפוק ועוד) קשורים בקשר חיובי וחזק לתחושת אושר (well being) ואילו תכונות שליליות, שהיינו מצפים שיהיו מקושרים לרמת אושר נמוכנה (כעס, פחד, שיעמום) קשורים לאושר בקשר שלילי וחזק.   
+
+שימו לב, טבלת הקורלציות היא האמנם ריבוע, אך כפי שהבנו קודם היא מורכבת משני חצאים סימטריים המופרדים על ידי האלכסון, הקורלציה של כל משתנה עם עצמו, שהיא  תמיד 1. לכן מספיק לבחון רק "משולש " אחד שנמצא מעל או מתחת לאלכסון.
+
+```{r corr_table_question, echo = FALSE}
+question(" איזה משתנה מקושר לאושר בקשר החלש ביותר? (הכי קרוב ל0)  ",
+         answer("תחושת פחד", message = "יש תכונה שהקורלציה שלה לאושר  יותר קרובה ל0"),
+         answer("תחושת השראה", message = "יש תכונה שהקורלציה שלה לאושר  יותר קרובה ל0"),
+         answer("תחושת לחץ",correct = TRUE, message ="נכון! תחושת לחץ קיבלה את הקורלציות הנמוכות ביותר עם אושר, וגם עם כל שאר המשתנים!"),
+         answer("תחושת גאווה",
+                message = "יש תכונה שהקורלציה שלה לאושר  יותר קרובה ל0"),
+         allow_retry = TRUE
+)
+```
+
+`תרגיל`  
+עכשיו נבחן את המשתנים הדמוגרפיים שלנו. בטבלה קיימים הנתונים הבאים:  
+
+רמת חינוך (education_level) - בין 1-10 (כאשר 1 = טרום יסודי ו10 = דוקטור)  
+גיל (age)    
+מגדר (p_of_male) - הסיכוי להיות גבר בתוך כל קבוצה (1= כולם גברים, 0=כולם נשים)  
+סטטוס (p_married) - הסיכוי להיות נשוי בתוך קבוצה (1= כולם נשואים, 0 = כולם לא נשואים) 
+
+צרו טבלה חדשה אשר כוללת רק את המשתנים הדמוגרפיים הללו ואת רמת ההכנסה (household_income) וחשבו בעזרתה  טבלת הקורלציות.  
+
+```{r cor_mat_ex, exercise=TRUE,exercise.eval = FALSE,exercise.reveal_solution = FALSE}
+
+demo_df <- 
+  
+demo_corr_matrix <-
+
+ggcorrplot(demo_corr_matrix, lab = TRUE)  
+
+print(demo_corr_matrix)
+
+# לא לערוך את הקוד מטה
+print(sum(demo_corr_matrix))
+```
+
+```{r cor_mat_ex-solution}
+demo_df <- select(income_wellbeing, c(household_income, p_of_male, p_married, education_level,age))
+  
+demo_corr_matrix <- cor(demo_df)
+
+ggcorrplot(demo_corr_matrix, lab = TRUE)  
+
+print(demo_corr_matrix)
+
+# לא לערוך את הקוד מטה
+print(sum(demo_corr_matrix))
+```
+
+```{r cor_mat_ex-check}
+grade_result(pass_if(~identical(.result,
+                     sum(cor(select(income_wellbeing, household_income, p_of_male, p_married, education_level,age))))),
+  
+    correct="טבלת הקורלציות מדויקת!", 
+  incorrect = "האם סיננתם את עמודות?"
+)
+```
+
+קיבלנו קורלציות גבוהות בין כל המשתנים הדמוגרפיים וגם בין המשתנים הדמוגרפיים לרמת ההכנסה. כלומר ככל שההכנסה גבוהה יותר המשתתפים היו בגדול גם מבוגרים יותר, נשואים יותר, גברים יותר ובעלי רמת השכלה גבוהה יותר. 
+
+
+```{r cor_mat_q, echo = FALSE}
+question("מה הביקורת כלפי המחקר שיכולה לעלות מנתונים אלה?",
+         answer("ייתכן וכסף לא באמת מקושר לאושר בפני עצמו", correct = TRUE, message="נכון מאוד, ולכן אסור לנו לשכוח שקורלציה היא לא סיבתיות. החוקרים, מסיבותיהם הטובות והנכונות משערים שהקשר החשוב והמרכזי הינו רמת ההכנסה, אבל הטבלה מדגימה לנו היטב שיכולים להיות גורמים נוספים."),
+         answer("הדגימה שנעשתה במחקר איננה מקרית", message = "האמת שזה מדגם הכולל אלפי אנשים מכל שכבות האוכלוסיה. הטבלה לא מדגימה לנו שאין דגימה מקרית בהכרח אלא שיש קשר חזק בין המשתנה של ההכנסה לכל שאר המשתנים הדמוגרפיים"),
+         answer("שנדגמו במדגם בעיקר גברים", message = "לא בדיוק, אנחנו יכולים רק ללמוד שככל שההכנסה הייתה גבוהה היו יותר גברים בקבוצה. זה כנראה משקף הטיה שקיימת באוכלוסיה ולא במדגם."),
+         answer("כל התשובות נכונות",  message = "לא נכון, יש רק תשובה אחת שקשורה לבעיה המרכזית במחקר."),
+         allow_retry = TRUE
+)
+```
+
+### בדיקת מובהקות
+אז עד כה חישבנו את הקורלציות, אבל איך אנחנו יכולים לדעת האם הקורלציה משמעותית מספיק? 
+
+בשיעור סטטיסטיקה לא למדתם איך לחשב ולדווח על מובהקות הקורלציה. גם כאן אנחנו לא ניכנס לאופן בו המובהקות מחושבת.  
+מה שחשוב להבין זה שכמו כל סטטיסטי אחר, המתאם שקיבלנו על סמך מדגם מושפע גם מהמתאם האמיתי בין המשתנים באוכלוסיה וגם מרעש אקראי שנובע מהדגימה.  
+
+כלומר – המתאם האמיתי בין המשתנים באוכלוסייה עלול להיות קצת שונה מזה שקיבלנו במדגם.  
+לכן – אם אנחנו רוצים להסיק מסקנות על האוכלוסייה נצטרך לבחון האם התוצאות שלנו מובהקות סטטיסטית, כמה סביר היה לקבל מתאם כמו שקיבלנו בטעות (כאשר אין מתאם באוכלוסיה).  
+ייתכן ואתם עוד לא מבינים את הרעיון הזה עד הסוף, וזה בסדר. מובהקות גם בהקשר זה מתבבסת על תהליך הדומה לזה הנעשה במבחן t. יכול להיות שבהמשך הסמסטר יהיה לכם יותר קל להבין את המושגים.  
+
+נוכל לבחון מובהקות של קורלציות באמצעות הפונקציה `cor.test`.  
+
+נחזור לקורלציה בין שני משתנים קשורים - אושר וסיפוק מהחיים:
+
+```{r}
+# תזכורת
+cor1 = cor(x=income_wellbeing$experienced_wellbeing, y=income_wellbeing$life_satisfaction)
+# ועכשיו לבדיקת המובהקות
+
+cor_test_1 = cor.test(x=income_wellbeing$experienced_wellbeing, y=income_wellbeing$life_satisfaction)
+
+# נדפיס את התוצאה
+cor_test_1
+```
+
+הפלט כולל בתוכו לא מעט מידע. קודם כל, אתם יכולים לנחש שכדי לבדוק את המובהקות של הקורלציה בעצם מסתמכים על מבחן t. עוד לא כיסינו את הנושא הזה בקורס הנוכחי (או בקורס סטטיסטיקה) ולכן התוצאות יהיו ברורות יותר לאחר שנתעמק במבחן t עצמו. עם זאת להלן הסבר קצר:  
+אנחנו מקבלים ערך t מחושב, את כמות דרגות החופש (במבחן קורלציה החישוב הוא מספר התצפיות פחות 2) וערך מובהקות (p value). אנחנו גם מקבלים את רווח הסמך של הקורלציה, אשר במקרה זה הינו בין 0.918 ל0.991. לבסוף מודפס לנו ערך  הקורלציה שהתקבל במדגם שלנו (אותו גם חישבנו קודם עם cor).
+
+
+ההשוואה שמבוצעת במבחן זה בוחנת כמה סביר לקבל המתאם שקיבלנו במדגם הנוכחי תחת השערת האפס, אשר מניחה שאין קורלציה בין המשתנים באוכלוסיה. המבחן במקרה זה מבוצע באופן דו זנבי, כאשר הp value קטן מרמת המובהקות שקבענו לעצמינו הסבירות של השערת האפס קטנה מאוד ואפשר לדחות אותה. 
+
+בשיעור זה נתמקד בערך הp כדי לקבוע את מובהקות הקורלציה. 
+נהוג להשוות את ערך זה לסף של 0.05 (רמת המובהקות אשר אנחנו מגדירים).  
+להלן קוד שמבצע את ההשוואה לרמת המובהקות:
+
+
+```{r}
+#  כדי לבדוק אם הקורלציה מובהקת נשווה את התוצאה לרמת המובהקות שנבחר כך:
+sig_level = 0.05
+cor_test_1$p.value < sig_level
+
+```
+בדקנו האם הערך שקיבלנו בבדיקת המובהקות קטן מהסף וקיבלנו תשובה חיובית.
+
+בואו נראה דוגמה נוספת, הפעם נבחר שני משתנים שהקשר בינהם חלש מאוד (והמתאם קרוב ל0). חדי העין מבינכם יוכלו לבחור משתנים מהטבלה הראשונה שציירנו - למשל הקשר בין השראה ( inspired) ללחץ (stress).
+
+```{r}
+# נתחיל ישר מבחינת המובהקות, שכן חישוב הקורלציה כלול בה
+
+cor_test_2 = cor.test(x=income_wellbeing$stressed, y=income_wellbeing$inspired)
+
+# נדפיס את התוצאה
+cor_test_2
+
+
+```
+
+נסו לקרוא את הפלט לב ולענות על השאלות הבאות:
+
+```{r cor_test_q1, echo = FALSE}
+question("מה היא הקורלציה בין לחץ להשראה?",
+         answer("-0.019 ", message="זהו ערך הטי, אתם עוד לא ממש יודעים מהו אולי, חכו לשיעור הבא כדי להבין לגמרי"),
+         answer("0.984", message = "זהו ערך הפי, הוא מראה לנו האם המבחן מובהק כאשר הוא קטן מרמת המובהקות שבחרנו. כאן קיבלנו ערך גבוהה ולכן לא נוכל לדחות את השערת האפס "),
+         answer("-0.516", message = "קרוב אבל לא, זהו הגבול התחתון של רווח הסמך. שימו לב לערך העליון שהינו חיובי, כלומר רווח הסמך כולל את אפס דבר התומך בכך שלא ניתן לדחות את השערת האפס."),
+         answer("-0.005", correct = TRUE),
+         allow_retry = TRUE
+)
+```
+
+```{r cor_test_q2, echo = FALSE}
+question("p-value?",
+         answer("-0.019 ", message="זהו ערך הטי, אתם עוד לא ממש יודעים מהו אולי, חכו לשיעור הבא כדי להבין לגמרי"),
+         answer("0.984", , correct = TRUE, message = "נכון!! "),
+         answer("-0.516", message = " לא, זהו הגבול התחתון של רווח הסמך. שימו לב לערך העליון שהינו חיובי, כלומר רווח הסמך כולל את אפס דבר התומך בכך שלא ניתן לדחות את השערת האפס."),
+         answer("-0.005", message = "לא נכון, זהו ערך הקורלציה"),
+         allow_retry = TRUE
+)
+```
+
+```{r cor_test_q3, echo = FALSE}
+question("מה המסקנה?",
+         answer("הקורלציה בין משתנים אלה לא שונה במובהק מ0", correct = TRUE, message="נכון, קיבלנו ערך קורלציה שקרוב מאוד לאפס וערך פי שקרוב מאוד לאחד ולכן לא ניתן להסיק שהקורלציה שונה במובהק מאפס או שיש קשר בין המשתנים"),
+         answer("הקורלציה בין משתנים אלה קטנה באופן במובהק מ0",  message = "לא נכון! ערך הקורלציה אכן נמוך מאפס אבל הקורלציה לא נמצאה מובהקת שכן ערך הפי גדול מהסף! "),
+         answer("הקורלציה בין משתנים אלה גדולה באופן במובהק מ0 ", message = " לא, הקורלציה במקרה זה היא שלילית, וגם לא נמצאה מובהקת, שכן ערך הפי גדול מסף המובהקות."),
+         allow_retry = TRUE
+)
+```
+
+`תרגיל`  
+אז האם כסף קונה אושר בצורה מובהקת..?  
+בצעו מבחן מובהקות והדפיסו את הp-value.
+
+```{r cor_test_ex, exercise=TRUE, exercise.eval = FALSE }
+main_cor_test <-
+print(main_cor_test$p.value)
+```
+
+```{r cor_test_ex-solution}
+main_cor_test = cor.test(x=income_wellbeing$experienced_wellbeing, y=income_wellbeing$household_income)
+
+print(main_cor_test$p.value)
+```
+
+```{r cor_test_ex-check}
+grade_result(pass_if(~identical(.result,
+                     cor.test(x=income_wellbeing$experienced_wellbeing, y=income_wellbeing$household_income)$p.value)),
+  
+    correct="מעולה, הקורלציה מובהקת!", 
+  incorrect = "עוד לא הגעתם לערך המדויק.."
+)
+```
+
+## רגרסיה לינארית
+
+הקורלציה מספקת לנו מידע לגבי חוזק הקשר בין שני משתנים, מודל הרגרסיה מאפשר לנו לתאר את הקשר בינהם על ידי משוואה לינארית.  
+מה היא משוואה לינארית? זוהי משוואה אשר מתארת את הקשר בין משתנים באמצעות קו ישר וכוללת שני פרמטרים:  
+`קבוע` - ערך אשר מתאר את נקודת המפגש של הקו עם ציר Y (כלומר איזה ערך יתקבל במשתנה על ציר y כאשר המשתנה בציר הx יהיה שווה ל0)  
+`שיפוע` - ערך המתאר את קצב העליה או הירידה של הקו
+
+הפונקציה `lm()` היא הפונקציה שמאפשרת לנו לחשב את המשוואה הלינארי המתאימה לנתונים.  
+הפונקציה מקבלת את הארגומנטים הבאים:  
+`formula` - הנוסחה של המודל הלינארי, כך אפשר לפרט מהו המשתנה המנובא ומה הם משתנים המנבאים (ניתן להכניס יותר ממשתנה אחד, במקרה של רגרסיה מרובה).
+הפורמט של הנוסחה הוא: y ~ x  
+כאשר y הוא המשתנה התלוי (למשל רמת האושר) וx הוא המשתנה הבלתי תלוי, שאמור להיות, למשל, במקרה שלנו רמת ההכנסה.   
+`data` - מבנה הנתונים עליו נרצה לבצע את התאמת המודל  
+`subset` - אפשרות לפרט תנאי שיסנן חלק מהשורות לפני ביצוע התאמת המודל  
+`na.action` - מה לעשות במקרה שקיימים נתונים חסרים בנתונים. דומה מאוד לna.rm. אופציית ברירת המחדל כאן היא na.fail כלומר שהמודל לא יוכל לרוץ אם יש ערכים חסרים ונקבל שגיאה. כדי להשמיט את הערכים החסרים יש להכניס na.omit.    
+עד כה עבדנו עם טבלה הכוללת נתונים ברמת הקבוצה של המחקר שנערך ב2021. 
+
+עבור מודל הרגרסיה נעבור לעבוד עם נתונים של נבדקים בודדים, כדי שנוכל לתאר את המגמות ברמת המשתתף הבודד. לטובת זאת נעבוד עם טבלה שנקראת 2021_single_subject_wellbeing.   טבלה זאת היא בעצם שחזור של נתוני הנבדקים הבודדים מהמחקר המקורי שהכרנו עד כה ומכילה שחזור של נתוני הנבדקים הבודדים עבור המשתנים: רמת הכנסה, רמת אושר (הממוצעת לאורך המחקר) וגיל.   
+
+בואו נראה דוגמה למודל רגרסיה עם הנתונים המלאים מ2021:
+
+```{r}
+# נתבונן בנתונים
+head(single_subject_wellbeing_2021)
+
+# מודל המתאר את רמת האושר על סמך הכנסה
+linear_model_2021 <- lm(experienced_wellbeing~household_income, data=single_subject_wellbeing_2021, na.action = "na.omit" )
+
+# נוכל להדפיס את התוצאות
+# הקבוע
+linear_model_2021$coefficients[1]
+
+# השיפוע
+linear_model_2021$coefficients[2]
+```
+
+### פלט הרגרסיה 
+
+מעולה קיבלנו את המשוואה שמתארת את הקשר הלינארי בין הכנסה לאושר ואת הקבועים שלה.
+הקטור coefficients מכיל במקום הראשון את הקבוע ובמקום השני את השיפוע.   
+
+  
+אתם בוודאי שואלים את עצמכם מה המשמעות של השיפוע כאן? במבט ראשון נראה שזה ערך קטן מאוד, אבל בעצם מדובר על עליה של 0.0004 ברמת האושר על כל דולר שנוסף להכנסה השנתית, כפי שנמדדת על ידי השאלון בסולם של בין 1-100. 
+
+גם בניתוח זה אפשר לקבל טבלה הכוללת יותר מידע על התוצאות:
+
+```{r}
+# מודל המתאר את רמת האושר על סמך הכנסה
+linear_model_2021 <- lm(experienced_wellbeing~household_income, data=single_subject_wellbeing_2021, na.action = "na.omit" )
+
+#   התוצאה המלאה
+# נשתמש בפונקציה היוצרת סיכום
+summary(linear_model_2021)
+
+
+```
+ 
+
+על ידי שימוש בsummary() אנחנו מקבלים מידע נוסף על המודל שהרצנו, על.
+הפלט מחולק לכמה חלקים:  
+`Call`
+תיאור המודל שהרצנו.  
+
+`Residuals`  
+השיירים (Residuals) אשר מספקים לנו אומדן על הסטייה הממוצעת של התצפיות מהקו הישר, ופירוט נוסף על הקבועים שחושבו עבור המודל. 
+
+`Coefficients` 
+הקבוע הראשון (הקבוע) נקרא תמיד Intercept והקבוע השני (השיפוע) נקרא תמיד בשם של המשתנה הבלתי תלוי במודל, במקרה שלנו כנסה.   
+
+בנוסף לערכים שכל קבוע מקבל (טור Estimate) אנחנו גם מקבלים הערכה של טעות התקן, ערך הt (שוב המובהקות של המודל מתבססת על מבחן t, הרחבה בנושא זה תהיה בלומדה הבאה) וערך המובהקות (p value). אנחנו מקבלים את הערך המחושב יחד עם סימון מובהקות בצורת כוכביות. כאן קיבלנו את *** שזאת דרגת המובהקות הגבוהה ביותר.   
+
+בתחתית נקבל עוד כמה נתונים חשובים למבחן רגסיה (בעיקר את R בריבוע שהיא האומדן לשונות המוסברת של המודל).
+
+`מה המשמעות הסטטיסטית של הפלט`  
+ במודל זה שני הקבועים במודל שלנו מובהקים. המשמעות של זה היא שנקודת המפגש עם ראשית הצירים איננה אפס וזה הגיוני מאוד שכן לא הייתה קיימת רמת אושר שווה לאפס במדגם. כמו כן, השיפוע מובהק, זהו הקבוע היותר משמעותי שכן הוא מתאר ישירות את הקשר הלינארי בין המשתנים. המובהקות של מודל הרגרסיה במקרה הזה מקבילה לבדיקת המובהקות של הקורלציה, שכן שני המבחנים בודקים את אותו הקשר.   
+
+`מה ההבדל בין רגרסיה לקורלציה?`  
+ההבדל העיקרי הוא שמודל הרגרסיה לא מוגבל לקשר בין שני משתנים (אם נוסיף יותר ממשתנה בלתי תלוי אחד המודל יבצע רגרסיה מרובה) וגם ניתן להשתמש במודל רגרסיה כדי לייצר תחזיות עבור נתונים חדשים. בעצם יש לנו עכשיו נוסחה שאם נזין לתוכה ערך מסוים של x נוכל לקבל את ערך הy שאמור להתקבל עבורו לפי המודל.
+בנוסף לכך אנחנו מקבלים את נתונים נוספים שלא נוכל תמיד להסיק מערך המתאם בלבד, למשל לגבי השיירים (Residuals), סטיית התקן שלהם ודרגות החופש, את R בריבוע ואת הגרסה המתוקנת שלו ומבחן סטטיסטי נוסף שלא נכסה בלומדה זאת.  
+
+עכשיו נראה איך הנתונים נראים בתצוגה גרפית:  
+
+```{r}
+# נצייר את זה
+ggplot(single_subject_wellbeing_2021, aes(x = household_income, y =experienced_wellbeing)) + geom_point() + geom_smooth(method = "lm")
+
+```
+
+באמצעות הפונקציה אנחנו יכולים גם לבצע את התאמה של מודל לסט מוגבל מתוך הנתונים. למשל נרצה לחשב את מודל לינארי רק לצעירים מתחת לגיל 30
+
+```{r}
+# נכלול גם את התנאי
+linear_model_2021_under30 <- lm(experienced_wellbeing~household_income, data=single_subject_wellbeing_2021, subset = age<=30, na.action = "na.omit" )
+ 
+#נדפיס 
+summary(linear_model_2021_under30)
+# סינון זה מקביל לסינון שאנחנו מכירים עם פילטר
+single_subject_wellbeing_2021_under30 = filter(single_subject_wellbeing_2021,  age<=30)
+# נצייר את זה
+ggplot(single_subject_wellbeing_2021_under30, aes(x = household_income, y =experienced_wellbeing)) + geom_point() + geom_smooth(method = "lm")
+
+```
+המגמה נראית מאוד דומה, אבל יש פחות נתונים.
+
+
+### מגמות שאינן לינאריות
+
+עד כה היה לנו קשר לינארי מאוד מובהק שמתואר היטב על ידי קו ישר
+אני בטוחה שאתם סקרנים לראות איך זה נראה כשאין קשר לינארי. 
+
+נוכל להשתמש לשם כך בסיפור שמאחורי המחקר שבו דנו עד עכשיו. המטרה העיקרית שלו הייתה לשחזר תוצאה מוכרת בספרות - שכל עוד יש רמת הכנסה שמאפשרת בטחון כלכלי בסיסי כסף דווקא לא קונה אושר.  
+המחקר המקורי נערך ב2010 על ידי החוקר המוכר דניאל כהנמן. מחקר זה מדגים שהכנסה הינה בקשר לינארי לרמת העושר רק עד סכום של 75 אלף דולר בשנה. זהו הסכום שהחוקרים המקוריים הניחו שמקושר לבטחון כלכלי מינימלי בארה"ב בשנת 2010.
+
+בואו נחזור על התהליך עם נתונים מדומים המשחזרים את הממצא של המחקר מ2010.
+
+```{r}
+# נתחיל במודל של אושר לפי הכנסה
+linear_model_2010 <- lm(experienced_wellbeing~household_income, data=single_subject_wellbeing_2010, na.action = "na.omit" )
+# נדפיס
+summary(linear_model_2010)
+
+# נאייר
+ggplot(single_subject_wellbeing_2010, aes(x = household_income, y =experienced_wellbeing)) + geom_point() + geom_smooth(method = "lm")
+
+```
+
+
+קיבלנו תוצאות שונות מאוד, הקו הלינארי לא מתאר בצורה ברורה את הנתונים יותר. במקרה זה כדאי להכיר, שהפונקציה הלינארית היא ממש לא האופציה היחידה. אנחנו לא נלמד לתאר נתונים עם משוואות אחרות בקורס זה, אבל רק נלמד להכיר את האופציה שמאפשרת לנו להתאים קו לא ישר לנתונים. עצם צורת הקו יכולה לרמוז לנו על סוג המגמה שכן מתאימה לנתונים שלנו. נעשה זאת באמצעות שינוי שיטת יצירת הקו של geom_smooth לloess. למען האמת זאת ברירת המחדל של geom_smooth אז אפשר גם לא להכניס כלום.
+
+
+```{r}
+
+ggplot(single_subject_wellbeing_2010, aes(x = household_income, y =experienced_wellbeing)) + geom_point() + geom_smooth(method = "loess")
+
+```
+
+ניתן לראות שהקו שמתאר את הנתונים מתעגל ולכן בהכרח אינו לינארי.  
+חשוב שניקח מזה, שלמרות שהקשרים היחידים שנלמד להכיר בתואר ראשון הם לינארים, לא כל הקשרים הם לינארים. לכן גם במקרים בהם קשר לינארי לא מתאר טוב את הנתונים שלנו, זה לא תמיד אומר שאין קשר בינהם, אלא רק שאין קשר לינארי. לכן איורים הם כלי נהדר שיכול לעזור לנו להבין את הנתונים שלנו יותר טוב.  
+
+## תרגיל מסכם
+
+`תרגיל 1`  
+קודם כל בואו נבחן את הנתונים מ2010 במבט קרוב יותר. צרו שני מודלים לינארים לנתונים, אחד עבור התצפיות שרמת ההכנסה שלהם היא עד 90 אלף דולר (כולל) בשנה ואחד עבור אלה שמרוויחים יותר.  
+
+האם השיפוע של המודל הראשון יותר קיצוני? צרו וקטור המכיל את שני השיפועים יחד.
+
+```{r final_ex_1, exercise=TRUE, exercise.eval = FALSE}
+
+# מודל מתחת ל90 אלף דולר
+linear_model_2010_below90k <- lm()
+# שמרו את השיפוע
+b_below90k <- 
+
+  # מודל מעל ל90 אלף דולר
+linear_model_2010_above90k <- lm()
+# שמרו את השיפוע
+b_above90k <- 
+  
+# האם השיפוע הראשון באמת יותר גדול?
+print(c(b_below90k, b_above90k))
+
+
+```
+
+```{r final_ex_1-solution}
+# מודל מתחת ל90 אלף דולר
+linear_model_2010_below90k <- lm(experienced_wellbeing~household_income, data=single_subject_wellbeing_2010, subset = household_income<=90, na.action = "na.omit" )
+# שמירת השיפוע
+b_below90k <- linear_model_2010_below90k$coefficients[2]
+#מודל מעל 90 אלף 
+linear_model_2010_above90k <- lm(experienced_wellbeing~household_income, data=single_subject_wellbeing_2010,  subset = household_income>90, na.action = "na.omit" )
+# שמירת השיפוע
+b_above90k <- linear_model_2010_above90k$coefficients[2]
+  
+# האם השיפוע הראשון באמת יותר גדול?
+print(c(b_below90k, b_above90k))
+
+```
+
+```{r final_ex_1-check}
+grade_result(pass_if(~identical(.result, c(lm(experienced_wellbeing~household_income, data=single_subject_wellbeing_2010, subset = household_income<=90, na.action = "na.omit" )$coefficients[2], lm(experienced_wellbeing~household_income, data=single_subject_wellbeing_2010,  subset = household_income>90, na.action = "na.omit" )$coefficients[2]))),
+    correct="כל הכבוד! אכן יש הבדל בין השיפועים, אפשר לראות שבקרב אנשים עם הכנסה נמוכה יש שיפוע גדול פי 10.", 
+  incorrect = "בדקו האת הקוד, עוד לא הגעתם לתשובה."
+)
+```
+
+`תרגיל 2`  
+
+אחד השינויים שנעשו במחקר מ2021 הוא לבחון גם את רמת החשיבות שהמשתתפים מייחסים לכסף. 
+הנתונים הללו נמצאים גם כן בטבלה income_wellbeing.
+חשבו את טבלת הקורלציות  בין אושר (experienced_wellbeing) רמת כנסה (household_income), חשיבות לכסף (money_importance) עד כמה המשתתפים רואים בכסף כהצלחה (money_is_succes) וכמה שעות בשבוע הם מקדישים לעבודה (workweek). הציגו את הטבלה בצורה גרפית.
+
+```{r final_ex_2, exercise=TRUE, exercise.eval = FALSE}
+# צרו טבלה המכילה רק את הנתונים המבוקשים
+
+# חשבו את טבלת הקורלציות
+corr_matrix <- 
+
+# צרו איור של הטבלה
+  
+# הדפסה - לא לערוך
+print(sum(corr_matrix))
+
+```
+
+```{r final_ex_2-solution}
+# טבלה מסוננת
+filt_df <- select(income_wellbeing, experienced_wellbeing, household_income, money_importance, money_is_succes, workweek)
+
+# נחשב את טבלת הקורלציות
+corr_matrix <- cor(filt_df)
+print(corr_matrix)
+
+# איור
+ggcorrplot(corr_matrix, lab = TRUE)
+
+  
+# הדפסה - לא לערוך
+print(sum(corr_matrix))
+```
+
+```{r final_ex_2-check}
+grade_result(pass_if(~identical(.result, sum(cor(select(income_wellbeing, experienced_wellbeing, household_income, money_importance, money_is_succes, workweek))))),
+    correct="מצויין! טבלת קורלציות מעולה", 
+  incorrect = "האם סיננתם את המשתנים הנכונים? בדקו את הקוד שלכם"
+)
+```
+
+`תרגיל 3`
+
+שני מאגרי הנתונים שראינו פה בעצם חוללו סערה בתחום. באופן מעניין מאוד החוקרים בחרו לשתף פעולה ולנסות לרדת יחד לסיבה שבגללה התוצאה לא שוחזרה.  
+
+השערה שהם הגיעו אליה היא שאולי כסף קונה עוד אושר למי שכבר מאושר בכל מקרה ואילו בקרב מי שלא מאושר כמות ההכנסה לא משנה.  
+
+טעונה ללומדה טבלה נוספת של הנתונים המאוחדים (single_subject_wellbeing_combained). 
+בטבלה קיימים הנתוני ההכנסה והאושר של המשתתפים (משתי המחקרים יחד) שהם בעלי רמת האושר הנמוכה ביותר (low) ושל אלה שהם בעלי רמת האושר הגבוהה ביותר (high).  
+
+חשבו את המתאם ואת מובהקותו בין אושר להכנסה בכל קבוצה בנפרד.
+
+```{r final_ex_3, exercise=TRUE, exercise.eval = FALSE}
+# נצפה בנתונים
+head(single_subject_wellbeing_combained)
+
+cor_test_low <- 
+  
+print(cor_test_low)
+  
+cor_test_high <- 
+
+print(cor_test_high)
+  
+# לא לערוך 
+print(c(round(cor_test_low$p.value,2), round(cor_test_high$p.value,2)))  
+```
+
+```{r final_ex_3-solution}
+
+head(single_subject_wellbeing_combained)
+
+cor_test_low <- cor.test(simulated_data$low_experienced_wellbeing, simulated_data$low_household_income)
+  
+print(cor_test_low)
+  
+cor_test_high <- cor.test(simulated_data$high_experienced_wellbeing, simulated_data$high_household_income)
+
+print(cor_test_high)
+  
+# לא לערוך 
+print(c(round(cor_test_low$p.value,2), round(cor_test_high$p.value,2)))  
+```
+
+```{r final_ex_3-check}
+grade_result(pass_if(~identical(.result, c(0.81, 0.00))),
+    correct="מצויין! מהפלטים הללו אנחנו יכולים להסיק שאכן יש קורלציה גבוהה ומובהקת אצל משתתפים בעלי רמת אושר גבוהה וקורלציה נמוכה ולא מובהקת בקרב המשתתפים הלא מאושרים", 
+  incorrect = "עוד לא הגעתם לתשובה הנכונה, נסו שוב"
+)
+
+```
+
+## משוב
+
+בחלק זה נבקש את המשוב שלכם על הלומדה. אנא ענו בכנות וביסודיות, על מנת שנוכל להשתפר. התשובות ישמרו בצורה אנונימית ולא ישפיעו על בדיקת התרגיל עצמה.
+שימו לב: ברוב השאלות אין אפשרות לשנות את התגובה לאחר לחיצה על כפתור ההגשה.
+
+
+```{r survey_q1, echo = FALSE}
+question("מה הייתה רמת הקושי של הלומדה עבורך? יש להתייחס לכמה הבנת את החומר ולרמת הקושי של התרגול עבורך. ",
+         type="single",
+         answer("קלה"        ,correct=TRUE,  message = "תגובתך: קלה"),
+         answer("בינונית"    ,correct=TRUE,  message = "תגובתך: בינונית"),
+         answer("מאתגרת"     ,correct=TRUE,  message = "תגובתך: מאתגרת"),
+         answer("קשה"        ,correct=TRUE,  message = "תגובתך: קשה"),
+         answer("קשה מאוד"   ,correct=TRUE,  message = "תגובתך: קשה מאוד"),
+         correct = "",
+         incorrect = "",
+         allow_retry = TRUE
+)
+```
+
+```{r survey_q2, echo = FALSE}
+question("עד כמה החומר הנלמד ביחידה הועבר בצורה ברורה לדעתך?",
+         type="single",
+         answer("במידה רבה"      , correct=TRUE,  message = "תגובתך: במידה רבה"),
+         answer("במידה סבירה" ,    correct=TRUE,  message = "תגובתך: במידה סבירה"),
+         answer("באופן חלקי"  ,    correct=TRUE,  message = "תגובתך: באופן חלקי"),
+         answer("במידה מעטה"  ,correct=TRUE,  message = "תגובתך: במידה מעטה"),
+         answer("במידה מעטה מאוד",correct=TRUE,  message = "תגובתך: במידה מעטה מאוד"),
+         correct = "",
+         incorrect = "",
+         allow_retry = TRUE)
+```
+
+```{r survey_q3, echo = FALSE}
+question("כמה זמן לקח לך לפתור את הלומדה בערך?",
+         type="single",
+         answer("פחות משעה"      , correct=TRUE,  message = "תגובתך: פחות משעה"),
+         answer("שעה" ,    correct=TRUE,  message = "תגובתך: שעה"),
+         answer("שעתיים"  ,    correct=TRUE,  message = "תגובתך: שעתיים "),
+         answer("שלוש שעות"  ,correct=TRUE,  message = "תגובתך:  שלוש שעות"),
+         answer("ארבע שעות ומעלה",correct=TRUE,  message = "תגובתך:  ארבע שעות ומעלה "),
+         correct = "",
+         incorrect = "",
+         allow_retry = TRUE)
+```
+
+```{r survey_q4, echo = FALSE}
+question(" אילו נושאים בלומדה היו קשים במיוחד עבורך?",type="learnr_checkbox",
+         answer("קורלציה", correct=TRUE),
+         answer("טבלת קורלציות", correct=TRUE),
+         answer("מובהקות הקורלציה", correct=TRUE),
+         answer("רגרסיה לינארית", correct=TRUE),
+         answer("פלט הרגרסיה", correct=TRUE),
+         answer("תרגיל מסכם", correct=TRUE),
+         answer("לא היה נושא קשה במיוחד", correct=TRUE),
+         correct = "תשובתך התקבלה. תודה על הפירוט",
+         try_again = "תשובתך התקבלה. תודה על הפירוט",
+         incorrect = "תשובתך התקבלה. תודה על הפירוט",
+         allow_retry = TRUE
+)
+```
+
+```{r survey_q5, echo = FALSE}
+  question_text(
+    " מצאת טעות? ספר/י לנו עליה (יש להקפיד ולציין את שם הפרק)",
+    incorrect = "תשובתך התקבלה!",
+    correct = "תשובתך התקבלה!",
+    answer(text = "asd",message="DFGDF"),
+    answer(text = "",correct = TRUE),
+    rows = 10,
+    trim = FALSE
+  )
+```
+
+```{r survey_q6, echo = FALSE}
+  question_text(
+    "יש לך עוד משהו לספר לנו? נשמח לשמוע משוב מפורט, הצעות כלליות או ספציפיות לפרק מסוים לגבי יחידה זאת.",
+    incorrect = "תשובתך התקבלה",
+    correct = "תשובתך התקבלה",
+    answer(text = "asd",message="DFGDF"),
+    answer(text = "",correct = TRUE),
+    rows = 10,
+    trim = FALSE
+  )
+```
+
+
+
+## הגשת התרגיל
+  סיימת? מעולה! עכשיו הגיע הזמן להגיש את התרגיל.  
+  יש ללחוץ על הכפתור:  Generate  
+  להעתיק את הטקסט שמופיע בחלון למטה ולהגישו במודל  
+  בהצלחה!
+
+```{r context="server"}
+learnrhash::encoder_logic()
+```
+
+```{r encode, echo=FALSE}
+learnrhash::encoder_ui()
+```
+
+
+הדביקו את קוד הhash בתוך הגרשיים בפונקצייה הבאה כדי לוודא שעניתם על כל השאלות והתרגילים בלומדה.
+
+```{r hash_check,  exercise = TRUE, exercise.eval = FALSE}
+
+check_hash_code("")
+
+```

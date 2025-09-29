@@ -1,0 +1,1346 @@
+---
+title: "Lesson 12: t-test"
+author: "Copyright 2024 Psychology Department. Hebrew University of Jerusalem. All rights reserved"
+output:
+  learnr::tutorial:
+    progressive: true
+    allow_skip: false
+  
+
+description: >
+  <div style='direction: rtl;'>
+  בשיעור זה נלמד איך לבצע מבחני t למדגם בודד, שני מדגמים בלתי תלויים ולמדגמים מזווגים בנוסף נלמד להציג את התוצאות בצורה גרפית
+  </div>
+runtime: shiny_prerendered
+---
+
+<style>
+h1, h2, h3, h4, h5, h6 {
+  direction: rtl;
+}
+p {
+  direction: rtl;
+}
+</style>
+
+
+<!-- tutorial options and checking options  -->
+```{r setup, include=FALSE}
+library(learnr)
+library(gradethis)
+library(Rcourse)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(ggcheck)
+
+# קודם כל נדמה את נתוני המדגם
+# התפקיד של שורה זאת היא לייצא את אותן תוצאות בכל פעם
+set.seed(123)
+# נקבע את הפרמטרים של המדגם:
+sample_n <- 50 # מספר המשתתפים
+sample_rt <- 1.8 # זמן התגובה הממוצע של הקבוצה
+sample_sd <- 0.3 # סטיית התקן של הקבוצה
+
+# נדמה מדגם בעל התפלגות נורמלית  
+reaction_time <- rnorm(sample_n, mean = sample_rt, sd = sample_sd)
+
+# נקבע את הפרמטרים של המדגם:
+sample_n <- 50 # מספר המשתתפים
+sample_rt <- 2.2 # זמן התגובה הממוצע של הקבוצה
+sample_sd <- 0.4 # סטיית התקן של הקבוצה
+
+# נדמה מדגם בעל התפלגות נורמלית  
+incongruent_reaction_time <- rnorm(sample_n, mean = sample_rt, sd = sample_sd)
+
+# simulate paired t-test data
+set.seed(42)
+
+# Number of pairs
+n <- 30
+
+# Correlation coefficient between paired samples
+rho <- 0.7
+
+# Mean and standard deviation for the two conditions
+mean_diff <- 0.4  # Mean difference between the two conditions
+sd <- 0.3         # Standard deviation of the measurements
+
+# Simulate paired data
+# Generate baseline scores (Condition A)
+Congruent <- rnorm(n, mean = 1.8, sd = sd)
+
+# Generate paired scores (Condition B) with correlation
+Incongruent <- rho * Congruent + sqrt(1 - rho^2) * rnorm(n, mean = 1.8+mean_diff, sd = sd)
+
+# Combine into a data frame
+paired_data <- data.frame(
+  ID = 1:n,
+  Congruent = Congruent,
+  Incongruent = Incongruent
+)
+
+# outlier_data
+# נדמה את נתוני המדגם
+set.seed(55)
+# נקבע את הפרמטרים של המדגם:
+# מספר המשתתפים
+sample_n <- 50
+# נדמה את זמני התגובה של כל קבוצה
+sample_rt_heb1 <- 1.8 
+sample_rt_heb2 <- 1.8
+# סטיית התקן של הקבוצה בדוגמה זאת נניח שוויון שונויות
+sample_sd <- 0.3
+
+# נדמה שני מדגמים בעלי התפלגות נורמלית  
+reaction_time_heb1 <- rnorm(sample_n, mean = sample_rt_heb1, sd = sample_sd)
+reaction_time_heb2 <- rnorm(sample_n, mean = sample_rt_heb2, sd = sample_sd)
+
+# עכשין נכניס שתי דגימות קיצוניות, אחת לכל דגימה
+# בקבוצה המקורית הזנת הנתונים השתבשה לנבדק הש8 ו33
+reaction_time_heb1[8] <- -5000
+reaction_time_heb1[33] <- -5000
+
+# במדגם החדש הנבדק ה11 וה25 יצאו באמצע והערך שהתקבל עבורם גדול מאוד 
+reaction_time_heb2[11] <- 5000
+reaction_time_heb2[25] <- 5000
+
+# ניצור טבלה
+outlier_data = data.frame(sample1 = reaction_time_heb1, sample2 = reaction_time_heb2)
+
+
+
+##### פונקציה לבדיקה
+exercises_df = data.frame(exercises = c("t_dist_q", "critical_t_ex", "one_samp_t_output_question", "two_sample_t_q", "paired_t_q", "outlier_t_ex", "final_q_5", "final_q_7", "final_q_8_1", "final_q_8_2", "final_q_9", "final_q_10", "final_q_11"), hebrew = c("שאלה - התפלגות ", "שאלה - ערך קריטי", "שאלה - מבחן למדגם בודד", "שאלה - מבחן שאלה - מדגמים בלתי תלויים", "תרגיל - מבחן למדגמים מזווגים", "תרגיל - תצפיות קיצוניות", "תרגיל מסכם שאלה 1", "תרגיל מסכם שאלה 2", "תרגיל מסכם שאלה 3", "תרגיל מסכם שאלה 4", "תרגיל מסכם שאלה 5", "תרגיל מסכם שאלה 7", "תרגיל מסכם שאלה 8"
+                                     ))
+
+
+check_hash_code   = function(hash){
+    exercises = exercises_df$exercises
+    response_table = learnrhash::decode_obj(hash)
+    if (length(response_table)==0){return("Invalid hash code")}
+    correct = response_table %>% filter(label %in% exercises, correct) %>% pull(label)
+    incorrect = setdiff(exercises, correct)
+    if (length(incorrect) == 0){return("Great work! Hash code is valid")}
+    else{
+      hebrew = exercises_df  %>% filter(exercises %in% incorrect) %>%pull(hebrew)
+      print("The following exercises are missing or incorrect:")
+      print(hebrew)
+    }
+
+} 
+
+
+knitr::opts_chunk$set(error = TRUE)
+
+#gradethis::gradethis_setup()
+```
+
+## מבוא - התפלגות t
+ביחידה זה אנחנו נלמד איך לבצע מבחני t על נתונים אמיתיים בR ולהציג את תוצאותיהם. כמו שבוודאי ידוע לכם, מבחן t מתבסס על השוואת נתוני המדגם להתפלגות הt. בעוד שבמבחן z מאפשר לבצע בדיקת השערות באמצעות התפלגות נורמלית לאוכלוסיה שהשונות שלה ידועה. מבחן t משתמש בהתפלגות t, התפלגות הסתברותית המשתמשת לבדיקת השערות כאשר שונות האוכלוסייה הנבדקת אינה ידועה. צורתה של התפלגות זאת דומה להתפלגות נורמלית אך בעלת “זנבות כבדים” אשר משקפים את חוסר הוודאות שנגרם מהצורך לאמוד את השונות האוכלוסייה מהמדגם. חוסר הוודאות והסיכון לקבל ערכים קיצוניים מועצם במדגמים קטנים, לכן ככל שגודל המדגם גדול יותר, האמינות שלו גדולה יותר וצורת ההתפלגות מתקרבת להתפלגות נורמלית.
+
+לפני שנתחיל, נציין שבלומדה זאת נדמה נתונים ונבצע הצגות מתקדמות שאולי עוד לא למדתם קודם. אפשר ורצוי ללמוד את העקרונות מהקוד שמוצג לכם, אבל אלה לא החומרים העיקריים של הלומדה.  
+
+בואו נמחיש את ההתפלגות:
+
+```{r}
+# לצורך ההצגה נדמה נתונים
+x <- seq(-5, 5, length.out = 100)
+
+# נשווה התפלגות במדגם של 10 משתתפים להתפלגות נורמלית
+samp_size = 10
+# שימו לב, דרגות החופש הן גודל המדגם פחות 1
+# נבנה את ההתפלגויות בטבלה
+dist_data <- data.frame(
+  x = rep(x, 2),
+  y = c(
+    dt(x, df = samp_size-1),
+    dnorm(x)
+  ),
+  Distribution = factor(rep(c("T", "Normal"), each = length(x)))
+)
+
+# כעת נצייר את ההתפלגות
+ggplot(dist_data, aes(x = x, y = y, color = Distribution)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Comparison of t-Distribution and Normal Distribution",
+    x = "t-value",
+    y = "Density",
+    color = "Distribution"
+  )
+
+
+```
+
+בקוד למעלה בעצם דימינו את התפלגות הt למשתנה x שהינו בעל טווח ערכים מוגדר.  
+את מעטפת ההתפלגות ייצרנו באמצעות הפונקציה `dt()` אשר מקבלת את x ואת דרגות החופש. 
+
+`תרגיל`  
+הקוד מטה מציג את ההתפלגות עם דרגות חופש של 5, 10, 30 ו100.
+
+
+```{r}
+# לצורך ההצגה נדמה נתונים
+x <- seq(-5, 5, length.out = 100)
+
+# נשווה התפלגות במדגם של 10 משתתפים להתפלגות נורמלית
+samp_size = c(5, 10, 30, 100)
+# שימו לב, דרגות החופש הן גודל המדגם פחות 1
+# נבנה את ההתפלגויות בטבלה
+dist_data <- data.frame(
+  x = rep(x, length(samp_size)+1),
+  y = c(
+    dt(x, df = samp_size[1]-1),
+    dt(x, df = samp_size[2]-1),
+    dt(x, df = samp_size[3]-1),
+    dt(x, df = samp_size[4]-1),
+    dnorm(x)
+  ),
+  Distribution = factor(rep(c("t, df=5", "t, df=10", "t, df=30", "t, df=100", "Normal"), each = length(x)))
+)
+
+# כעת נצייר את ההתפלגות
+ggplot(dist_data, aes(x = x, y = y, color = Distribution)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Comparison of t-Distribution and Normal Distribution",
+    x = "t-value",
+    y = "Density",
+    color = "Distribution"
+  )
+```
+
+```{r t_dist_q, echo = FALSE}
+question("כמה דרגות חופש דרושות לכל הפחות כדי שההתפלגות טי תקבל צורה של התפלגות נורמלית בקירוב(לפי האיור)?",
+         answer("5",message = "לא נכון, שימו לב לקצוות ההתפלגות, ולמרכזה, עם 5 דרגות חופש עדיין יש הבדלים ניכרים מההתפלגות נורמלית"),
+         answer("10", message = "לא נכון, שימו לב לקצוות ההתפלגות, ולמרכזה, עדיין יש הבדלים ניכרים מההתפלגות נורמלית."),
+         answer("30", correct = TRUE, message = "נכון מאוד! עם דרגות חופש של יותר מ30 ההתפלגות דומה מספיק להתפלגות נורמלית"),
+         answer("100", message = "זה נכון שעם 100 דרגות חופש ההתפלגות כבר נורמלית אבל זהו לא המספר המינימלי"),
+         answer("יותר מ100", message = "ההתפלגויות, גם עם 100 דרגות חופש לא זהות באיור, אבל הן נחשבות קרובות מספיק כבר החלק מ30 דרגות חופש. "),
+         allow_retry = TRUE
+)
+```
+
+
+כעת כשהצגנו את התפלגות t אנחנו יכולים לראות שכאשר גודל מדגם שווה ל30 ומעלה ההתפלגות בעצם דומה מאוד להתפלגות נורמלית.  
+ עכשיו, אנחנו יכולים להשתמש בהתפלגות הtכדי לבצע את המבחן. במבחן עצמו נוכל לחשב על סמך התפלגות זאת את הסיכוי לקבל את סטטיסטי המדגם. 
+
+כידוע לכם מבחן t משווה ממוצע של המדגם להתפלגות הt. כך שתוצאת המבחן תלויה במספר פרמטרים:  
+1. דרגות החופש (אשר מגדירות את צורת ההתפלגות)  
+2. רמת המובהקות (אלפא)  
+3. סוג ההשערה (חד או דו זנבית)
+
+כלומר על בסיס גורמים אלה נוכל לחשב מהו `ערך הt הקריטי` שנצטרך לקבל במדגם כדי לקבל תוצאה מובהקת.  
+נוכל לחשב את הערך הקריטי באמצעות הפונקציה `qt()` אשר, בדומה לqnorm(), מחשבת מהו הערך המתכתב עם אחוז מסוים של ההתפלגות בהינתן דרגות החופש שלה.   
+באמצעות פונקציה זאת נוכל לחשב ערך של כל אחוזון, אבל השימוש הנפוץ ביותר יהיה למצוא את הערך שמתכתב עם אלפא.      
+לפונקציה זאת לא צריך נציין את התוחלת וסטיית התקן שכן אלו מקובעות בפונקציה לתוחלת של 0 וסטיית תקן של 1. 
+כעת נראה הדגמה לחישוב של הערך הקריטי:
+
+```{r}
+# נרצה לחשב מה הוא הערך הקריטי
+alpha <- 0.05 # הצבנו ערך קריטי של 5%
+df <- 10 # דרגות החופש
+# אם נרצה להשתמש בהשערה חד צדדית שלילית נוכל להזין את אלפא
+low_critical_t <- qt(alpha, df) 
+print(low_critical_t)
+
+# ערך קריטי להשערה חד זנבית חיובית
+# הצבנו את ההופכי של רמת המובהקות שכן נרצה לחשב את הערך הקריטי שמתכתב איתו
+upper_critical_t <- qt(1 - alpha, df) 
+upper_critical_t
+
+# נוסיף את הערך הקריטי החיובי לאיור ההתפלגות
+# קודם כל נדמה שוב נתונים
+x <- seq(-4, 4, length.out = 1000)
+y <- dt(x, df = df)
+
+# נאייר קודם את  ההתפלגות עצמה
+ggplot(data.frame(x, y), aes(x, y)) +
+  geom_line(color = "blue", linewidth = 1) +  
+  # נוסיף את הערך הקריטי להתפלגות באמצעות קו אונכי
+  geom_vline(xintercept = c(upper_critical_t), color = "red", linetype = "dashed", linewidth  = 1) +  # עיצוב
+  labs(
+    title = "t-Distribution with Critical Values (df = 10)",
+    x = "t-value",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+```
+
+
+לפי הדוגמה למעלה, אם במדגם שלנו היה מתקבל ערך גבוהה מערך הt הקריטי, אפשר היה להגיד שתחת רמת הבטחון הנוכחית אפשר לדחות את השערת ה0.
+
+שימו לב, הדוגמה למעלה מדגימה לנו איך נראית ההתפלגות עם הערך הקריטי עבור רמת מובהקות של 5% והשערה חד זנבית חיובית. כדי לשנות את רמת המובהקות יש פשוט לערוך את המשתנה שנקרא אלפא. אבל כדי להתחשב בהשערה דו זנבית יש צורך בעצם לחלק את ההיגד:
+(1-alpha)
+ב2, שכן עכשיו רמת המבוהקות בעצם מתחלקת בין שתי קצוות העקומה.  
+
+`תרגיל`  
+בואו נחשב את הערך הקריטי עבור השערה דו זנבית עם רמת מובהקות של 1% ו10 דרגות חופש.  
+רמז - התבססו על הקוד של הדוגמה למעלה ושימו לב שעכשיו יש לאייר שני קווים (כבר בדוגמה יש שימוש בוקטור אז אפשר פשוט להוסיף לו עוד ערך).  
+
+```{r critical_t_ex, exercise=TRUE, exercise.eval = FALSE}
+# הגדירו את רמת הבטחון
+alpha <- 
+# הגדירו את דרגות החופש
+df <- 
+# חשבו את הערכים הקריטים
+# הסף התחתון
+low_critical_t <- 
+upper_critical_t <- 
+
+## אין צורך לערוך את הקוד מטה
+critical_t <- c(low_critical_t, upper_critical_t)
+# נדמה את הנתונים
+x <- seq(-4, 4, length.out = 1000)
+y <- dt(x, df = df)
+
+# איור
+ggplot(data.frame(x, y), aes(x, y)) +
+  geom_line(color = "blue", linewidth = 1) +  
+  # נוסיף את הערך הקריטי להתפלגות באמצעות קו אונכי
+  geom_vline(xintercept = critical_t, color = "red", linetype = "dashed", linewidth = 1) +  # עיצוב
+  labs(
+    title = "t-Distribution with Critical Values (df = 10)",
+    x = "t-value",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+critical_t
+```
+
+```{r critical_t_ex-solution}
+# הגדירו את רמת הבטחון
+alpha <- 0.01
+# הגדירו את דרגות החופש
+df <- 10
+# חשבו את הערכים הקריטים
+# הסף התחתון
+low_critical_t <- qt((alpha/2), df)
+upper_critical_t <- qt(1-(alpha/2), df)
+
+## אין צורך לערוך את הקוד מטה
+critical_t <- c(low_critical_t, upper_critical_t)
+
+# נדמה את הנתונים
+x <- seq(-4, 4, length.out = 1000)
+y <- dt(x, df = df)
+
+# איור
+ggplot(data.frame(x, y), aes(x, y)) +
+  geom_line(color = "blue", linewidth = 1) +  
+  # נוסיף את הערך הקריטי להתפלגות באמצעות קו אונכי
+  geom_vline(xintercept = critical_t, color = "red", linetype = "dashed", linewidth = 1) +  # עיצוב
+  labs(
+    title = "t-Distribution with Critical Values (df = 10)",
+    x = "t-value",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+critical_t
+
+```
+
+```{r critical_t_ex-check}
+grade_result(pass_if(~identical(.result,
+                     c(qt((0.01)/2, 10), qt(1 - 0.01/2, 10)))),
+  
+    correct="נהדר!", 
+  incorrect = "נסו שוב"
+)
+```
+
+מעולה, אפשר להבין בכך שככל שאלפא מקבל ערך קטן יותר נידרש לערך קריטי קיצוני יותר.  
+
+ועכשיו יש לנו את כל מה שדרוש כדי לבצע את המבחן. אנחנו יכולים לבצע מבחן ידנית על ידי השוואה של ערך שהתקבל במדגם מסוים להתפלות הt המתאימה לו על פי דרגות החופש.   
+נוכל לעשות זאת על ידי שימוש בפונקציה ההפוכה לqt() - `pt()` . אליה נוכל להכניס את הערך שחושב במדגם ולקבל מה ההסתברות שלו תחת התפלגות הt. או במילים אחרות, אם נכניס את ערך הt המחושב ונבין מה ההסתברות לקבל אותו תחת ההתפלגות בעצם נוכל לחשב את ה`p-value`. 
+
+נמשיך עם הדוגמה הקודמת שלנו ונוסיף לה ממוצע מדגם היפותטי:
+
+```{r}
+#   רמת הבטחון
+alpha <- 0.05
+#  דרגות החופש
+df <- 10
+# ממוצע המדגם
+samp_mean <- -3.9
+
+# חישוב ההסתברות
+p_value <- pt(samp_mean, df)
+
+print(p_value)
+
+# נציג
+x <- seq(-4, 4, length.out = 1000)
+y <- dt(x, df = df)
+
+# איור
+ggplot(data.frame(x, y), aes(x, y)) +
+  geom_line(color = "blue", linewidth = 1) +  
+  # נוסיף את הערך הקריטי להתפלגות באמצעות קו אונכי
+  geom_vline(xintercept = samp_mean, color = "green", linetype = "dashed", linewidth = 1) +  # עיצוב
+  labs(
+    title = "t-Distribution with Critical Values (df = 10)",
+    x = "t-value",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+```
+
+
+אנחנו יכולים לראות שקיבלנו ערך p מאוד נמוך, קטן מאלפא בצורה ברורה. כלומר, אנחנו יכולים להסיק שההסתברות לממוצע המדגם הנ"ל מאוד נמוכה תחת השערת האפס וניתן לדחות אותה.  
+שימו לב - כדי לבצע את אותו תהליך על ממוצע מדגם בעל חיובי קיצוני היינו צריכים להחסיר את הערך הp מ1 כדי לקבל את הסיכוי הנכון. 
+ 
+ 
+אחרי שהבנו לעומק את התהליך וההתפלגות, נוכל לעבור לביצוע המבחנים בפועל. למזלינו יש פונקציה שמארגנת את כל הניתוח המורכב הזה עבורינו.
+
+## מבוא - מבחן t
+
+כדי לבצע מבחן t אנחנו נעבוד עם הפונקציה `t.test`. אנחנו נכיר את הארגומנטים שהיא מקבלת תוך כדי העבודה על מבחני הt השונים.  
+יתכן ורשימת הארגומנטים למטה תהיה קצת מחוץ לקונטקסט, היא נועדה לספק סדר כאשר כל הארגומנטים נמצאים במקום אחד, הארגומנטים השונים יוסברו בפירוט רב יותר אם יהיה צורך.
+
+`x`  - הנתונים, חייבים להכניס לפחות וקטור אחד של נתונים לפונקציה כדי לקבל תוצאה.  
+
+`y` - וקטור נוסף של נתונים במידה וישנן שתי קבוצות.  
+
+`alternative` - סוג ההשערה אם לא נפרט את סוג ההשערה יעשה שימוש בברירת המחדל - השערה דו זנבית ("two.sided"). כדי לבצע מבחן חד זנבי חיובי יש להזין ("greater") ועבור מבחן חד זנבי שלילי יש לפרט ("less").  
+
+`mu` - ממוצע ההשוואה עבוד מבחן למדגם בודד.   
+
+`conf.level` -  רמת בטחון, ארגומנט זה ישמש בעיקר לחישוב רווח בר סמך.
+
+ארגומנטים הרלוונטיים רק למבחן עם שני מדגמים:  
+
+`paired` - האם לבצע מבחן למדגמים מזווגים או מדגמים בלתי תלויים? יש להזין באגומנט זה ערך לוגי (כלומר TRUE אם מעוניינים לבצע מבחן מזווג). ערך ברירת המחדל הוא FALSE, כלומר לבצע מבחן לא מזווג.
+
+`var.equal` - האם ניתן להניח שוויון שונויות בין שני מדגמים.  
+
+
+### היכרות עם הנתונים
+עכשיו נעבור לעבודה עם נתונים שאתם כבר מכירים - מבחן הסטרופ.
+תזכורת - בגרסה המוכרת שלו, מציגים למשתתפים שמות של צבעים הצבועים בצבע. הצבע יכול להיות `תואם` למילה הכתובה או `לא תואם`. בתנאי התואם קל יותר למשתתפים לעבד את המילה ואילו בתנאי הלא תואם צריך לגייס תהליכים נשלטים ולכן זמן התגובה של המשתתפים לרוב גדול יותר בצורה משמעותית בתנאי הלא תואם. 
+רוצים לדעת עוד? לחצו כאן:
+[Stroop](https://he.wikipedia.org/wiki/%D7%90%D7%A4%D7%A7%D7%98_%D7%A1%D7%98%D7%A8%D7%95%D7%A4)  
+
+בהדגמות אנחנו נעבוד עם נתונים מדומים, אבל אל דאגה בתרגיל המסכם של הלומדה נחזור לנתונים האמיתיים.
+
+
+## מבחן t למדגם בודד
+
+ההשערה הפשוטה ביותר שאנחנו יכולים לבחון באמצעות מבחן t היא השוואה של ממוצע המדגם לתוחלת ידועה. למשל בהקשר של מטלת הסטרופ, נניח שהחלטנו להריץ גרסה של המטלה בעברית ונרצה לבדוק האם זמן התגובה שונה מזה המוכר בספרות  אשר, מבוססת ברובה על המטלה באנגלית.   
+
+לצורך הדוגמה נרצה לבחון את ההשערה שזמן התגובה במדגם הנוכחי שונה מתוחלת של 2.  
+
+לטובת דוגמה זאת נשתמש ברמת מובהקות הסטנדרטית של 0.05.   
+
+לצורך זה נשתמש בארגומנט `mu` שניתן להציב בפונקציה שתבצע את המבחן. ארגומנט זה מפרט מה היא תוחלת ה"אוכלוסיה" אליה רוצים להשוות את נתוני המדגם.  
+
+כמובן שבמקרה זה אין לנו גישה להתפלגות המלאה של האוכלוסיה ולכן אנחנו משתמשים במבחן t.
+
+```{r}
+# נשתמש בנתוני זמן תגובה 
+print(reaction_time)
+
+# נבצע את המבחן עם הצבה של התוחלת המשוער
+sig_level <- 0.05
+# זהו המבחן הבסיסי ביותר ולכן נצטרך לפרט רק את הנתונים והתוחלת
+t_test_result <- t.test(reaction_time, mu = 2)
+
+# התוצאות נשמרו למשתנה
+# עכשיו נוכל לגשת לסטטיסטי שחושב בתוצאה
+# יש כמה דרכים
+t_test_result["statistic"]
+t_test_result$statistic
+
+# לדרגות החופש
+t_test_result$parameter
+
+# p value
+t_test_result$p.value
+
+# רווח סמך
+t_test_result["conf.int"]
+
+# ואפשר גם להדפיס את התוצאה המלאה
+print(t_test_result)
+
+```
+
+
+### פלט המבחן
+מעולה, הרצנו את המבחן ואת התוצאה שמרנו במשתנה. כעת נוכל לעבור על הפלט.
+בשורה הראשונה מפורט לנו באיזה נתונים השתמשנו.  
+
+בשורה שמתחתיה נוכל למצוא את תוצאות המבחן עצמו: דיווח של הסטטיסטי, דרגות החופש וערך הp value.  
+
+איך נדע האם התקבלה תוצאה מובהקת?  
+הדרך הקלה ביותר תהיה להשוות את ערך הp לרמת המובהקות שבחרנו למבחן זה (למשל 0.05).  
+
+לא ברור לכם איזה ערך קיבל הp value במבחן הנוכחי? תקבלו הסבר מלא בחלק הבא.
+
+ מתחת, מתוארת לנו גם ההשערה האלטרנטיבית עבור המבחן שערכנו – שהתוחלת של האוכלוסייה ממנה דגמנו אינה 2.  
+ מתיאור זה נוכל להסיק מה היא השערת האפס, שהתוחלת שווה ל2. כמו כן, תיאור זה מבטא שהמבחן שערכנו היה דו זנבי, שכן למבחן חד זנבי ההשערה האלטרנטיבית הייתה שהממוצע גדול או קטן מ2.  
+ 
+לאחר מכן מדווחים לנו גם גבולות רווח הסמך (confidence interval) עבור התוחלת באוכלוסייה וממוצע המדגם.
+
+### מספרים מקוצרים
+שימו לב לפורמט, כאשר ערך הp ממש ממש קטן הוא יוצג בפורמט מקוצר, תוכלו לדעת שזה קרה כשהאות e תוצג בתוך המספר. למשל בדוגמה למעלה קיבלנו שערך הp הוא 1.388e-05. זוהי בעצם פעולה חשבונית שמקצרת לנו את ההצגה של המספר. המשמעות של e ואחריו מספר שמתחיל ב- היא בעצם חלוקה של המספר ב1 וכמות האפסים הרשומה לאחר ה-. למקרה שזה לא היה מספיק ברור, את ערך הp שקיבלנו בניתוח זה אפשר היה לכתוב גם כך:  
+1.388/100000  
+כלומר, אתם מבינים שמדובר במספר קטן מאוד, שאין ספק שהוא קטן מ0.05.  
+חשוב לדעת! כמו שהתוכנה משתמשת בe כדי לקצר את התצוגה של מספרים ממש קטנים (כלומר, בעלי הרבה אפסים לאחר הנקודה העשרונית) היא גם יכולה לשמש את התוכנה כדי לקצר מספרים מאוד גדולים. כך שלמשל:
+1.388e05 שווה למכפלה ב100000 ולא לחלוקה בו. (כלומר היא 138800).
+
+
+```{r one_samp_t_output_question, echo = FALSE}
+question(" האם ניתן לדחות את השערת האפס לפי הפלט?",
+         answer("כמובן, ערך הפי קטן מרמת המובהקות שקבענו. ", correct = TRUE),
+         answer("ממש לא, רווח הסמך הינו מתחת לממוצע המוכר מאוכלוסיה ", message = "נכון, קיבלנו שממוצע המדגם כנראה נמוך מהממוצע המקורי עליו שיערנו, אבל כיוון שרווח הסמך אינו כולל את ממוצע האוכלוסיה המשוער אנחנו דווקא יכולים לדחות את השערת האפס במידה והיא דו זנבית"),
+         answer("לא ניתן כיוון שערך הפי גדול מרמת המובהקות שקבענו ", message = "הערך המוצג אכן קצת מטעה, אבל קראו בעיון את החלק הבא על מספרים מקוצרים והכל יתבהר. ערך הp במקרה זה בעצם ממש קטן, הוא רק מוצג בפורמט מקוצה."),
+allow_retry = TRUE
+)
+```
+
+
+```{r e_numbers_question, echo = FALSE}
+question("איזה משורות הקוד הבאות יכולו לעזור להבין האם ניתן לדחות את השערת האפס",
+         answer("t_test_result['p.value'] < sig_level", message = "בדקו את התשובות שוב.."),
+         answer("1.388e-05 < 5e-02", message = "נסו שוב.."),
+         answer("1.388/100000 < 0.05", message = "לא בדיוק"), answer("כל התשובות נכונות", correct = TRUE),
+allow_retry = TRUE
+)
+```
+
+
+ועכשיו נוסיף איור שמשווה את נתוני המדגם למידע הקיים בספרות. 
+
+
+```{r}
+# הצגת הנתונים
+library(ggplot2)
+stroop_data <- data.frame(Condition = "Reaction Time", Reaction_Time = reaction_time)
+
+sample_mean <- mean(reaction_time)
+ci_lower <- t_test_result$conf.int[1]
+ci_upper <- t_test_result$conf.int[2]
+mu = 2
+
+plot_data <- data.frame(
+  Group = "Sample",
+  Mean = sample_mean,
+  CI_Lower = ci_lower,
+  CI_Upper = ci_upper
+)
+
+ggplot(plot_data, aes(x = Group, y = Mean)) +
+  geom_col(fill = "skyblue", color = "black", width = 0.5) +  # Bar with border
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), width = 0.2, linewidth = 1) +  # Error bars
+  geom_hline(yintercept = mu, linetype = "dashed", color = "red", linewidth = 1) + 
+  labs(
+    title = "Sample Mean with Confidence Interval",
+    x = "",
+    y = "Reaction Time")
+
+```
+
+איור זה מציג את הממוצע (כחול) של זמני התגובה במדגם. הממוצע המוכר מהספרות מסומן על ידי הקו האדום.
+רווח הסמך מסומן סביב הממוצע בשחור.  
+ניתן לראות שהממוצע משמעותית נמוך יותר מהתוחלת אליה השווינו את הנתונים וכי ערך זה לגמרי מחוץ לרווח הסמך. זה האמנם לא מעיד על כך שאין כלל משתתפים שזמן התגובה שלהם גדול מ2, אך שממוצע הקבוצה ברמת בטחון של 95% מתחת לערך זה.
+
+
+`תרגיל`  
+בתיבת הקוד למטה דימינו לכם נתונים של זמני התגובה בטריאלים הלא תואמים.
+
+לחוקר שהריץ את המחקר הייתה השערה ספציפית לגבי קבוצת הטריאלים הללו בעברית לעומת אנגלית.   
+
+בספרות בתחום מוכר כי זמן התגובה הממוצע (באנגלית) בתנאי הלא תואם הוא 2.5 שניות.
+
+החוקר טען שכיוון שהמילים בעברית קצרות יותר, הוא צפוי להיות קטן יותר מבאנגלית.  
+בצעו מבחן אשר בודק את ההשערה הזאת, נתונים לכם זמני התגובה של הטריאלים הלא תואמים במדגם זה. בצעו מבחן t עם השערה חד זנבית המתאימה לתוחלת ידועה.
+והדפיסו את ערך הp שהתקבל.
+
+רמז - חזרו לתיאור הפונקציה כדי לדעת איך לבצע מבחן חד זנבי
+
+
+```{r one_sample_t_ex, exercise=TRUE, exercise.eval = FALSE}
+
+print(incongruent_reaction_time)
+# בצעו את המבחן כאן
+sig_level <- 0.05
+t_test_result <- 
+
+# הדפיסו
+t_test_result
+
+```
+
+```{r one_sample_t_q, echo = FALSE}
+
+question_text(
+  "<div style='direction: rtl;'>
+  מהו ערך הt המחושב?
+  
+  עגלו ל2 מקומות לאחר הנקודה העשרונית.
+  </div>",
+  answer("-4.7137", correct = TRUE),
+  answer("-4.71", correct = TRUE),
+  answer("-4.713", correct = TRUE),
+  answer("-4.72", correct = TRUE),
+  allow_retry = TRUE,
+  
+  correct="מעולה!", 
+  incorrect = "נסו שוב"
+)
+
+```
+
+
+מערך הtהגבוה וגם מערך הp ניתן להסיק שקיבלנו תוצאה מובהקת. אבל יש כמה נקודות  שכדאי לשים לב אליהן בפלט.   
+
+ רווח הסמך מקבל ערך אחד בלבד כאשר ההשערה היא חד זנבית ולכן קיבלנו רק את הערך העליון (במקרה של השערה חיובית היינו מקבלים רק את הערך התחתון) הסיבה לכך היא שהקצה העליון לא רלוונטי במקרה זה, אנחנו בעצם בוחנים האם רווח הסמך כולל את התוחלת הידועה בקצהו עליון או לא.  
+
+
+
+## מבחן t למדגמים בלתי תלויים
+
+ההשוואה של תוצאת המדגם לממוצע ידוע באוכלוסיה רלוונטית בפועל במספר קטן של מקרים, שכן לרוב אין לנו ממוצע ידוע באוכלוסיה. תרחיש יותר נפוץ הוא השוואה בין שני מדגמים.  
+
+אם נמשיך עם הדוגמה הקודמת, יותר סביר שהחוקר באוניברסיטה העברית יעבוד בשיתוף פעולה עם חוקר אחר בארה"ב אשר ביצע מחקר דומה באוכלוסיה דוברת אנגלית וההשוואה תתבצע בין נתוני המדגם המקומי לנתוני המדגם של דוברי האנגלית. 
+
+במקרה זה נשווה מדגם של מטלת הסטרופ בעברית למדגם של המטלה באנגלית. הפעם, נוכל להשתמש בהשערה שממוצע זמן התגובה במדגם באנגלית יהיה גבוה מאשר בעברית, שכן כבר יש לנו בסיס לשער השערה כזאת.
+
+
+```{r}
+# קודם כל נדמה את נתוני המדגם
+set.seed(234)
+# נקבע את הפרמטרים של המדגם:
+# מספר המשתתפים
+sample_n <- 50
+# נדמה את זמני התגובה של כל קבוצה
+sample_rt_heb <- 1.8 
+sample_rt_eng <- 2
+# סטיית התקן של הקבוצה בדוגמה זאת נניח שוויון שונויות
+sample_sd <- 0.3
+
+# נדמה שני מדגמים בעלי התפלגות נורמלית  
+reaction_time_heb <- rnorm(sample_n, mean = sample_rt_heb, sd = sample_sd)
+reaction_time_eng <- rnorm(sample_n, mean = sample_rt_eng, sd = sample_sd)
+
+# ועכשיו נשווה בין שתי הדגימות
+# כאשר ההשערה היא חד זנבית כיוון ההשוואה הוא תמיד בין הוקטור הראשון לשני
+# כלומר אם ההשערה היא שאנגלית גדול מעברית והמדגם באנגלית הוא ראשון ההשערה תהיה גדול יותר
+t_test_result <- t.test(x = reaction_time_eng, y = reaction_time_heb, alternative = "greater", paired = FALSE)
+
+# נדפיס את התוצאה המלאה
+print(t_test_result)
+```
+
+מצויין, שוב קיבלנו הבדל מובהק. שימו לב לפלט, עכשיו ההשערה המפורטת בו מתייחסת להבדל בין הקבוצות ולא לערך ידוע.
+
+```{r}
+# נייצר סיכום של הנתונים
+means <- c(mean(reaction_time_eng), mean(reaction_time_heb))
+sds <- c(sd(reaction_time_eng), sd(reaction_time_heb))
+
+# נציג את הנתונים
+plot_data <- data.frame(
+  Condition = c("English", "Hebrew"),
+  Mean = means,
+  SD = sds
+)
+
+ggplot(plot_data, aes(x = Condition, y = Mean)) +
+  geom_col(fill = "pink", color = "black", width = 0.6) +
+  geom_errorbar(aes(ymin = Mean - SD, ymax = Mean + SD), width = 0.2) +
+  labs(
+    title = "Reaction Times by Condition",
+    subtitle = "Error bars represent standard deviation",
+    x = "Stroop Language",
+    y = "Reaction Time"
+  )
+
+```
+
+האיור ממחיש לנו היטב את ממוצעי הקבוצות ואת סטיית התקן בתוך הקבוצות, אבל הוא לא מדגים ממש את האפקט שמבחן הt בוחן. כדי להציג את מה שהמבחן ממש בודק נצטרך להסתכל על ההפרש הממוצע בין הקבוצות.
+
+```{r}
+sample_mean_diff <- mean(reaction_time_eng) - mean(reaction_time_heb)
+ci_lower <- t_test_result$conf.int[1]
+# נדמה קצה עליון סימטרי לרווח הסמך
+ci_upper <- sample_mean_diff + (sample_mean_diff-t_test_result$conf.int[1])
+# הפעם הערך אליו נשווה את ממוצע ההפרשים הוא 0 
+# שכן השערת האפס היא שאין הבדל
+mu = 0
+
+plot_data <- data.frame(
+  Group = "Group Difference",
+  Mean = sample_mean_diff,
+  CI_Lower = ci_lower,
+  CI_Upper = ci_upper
+)
+
+ggplot(plot_data, aes(x = Group, y = Mean)) +
+  geom_col(fill = "pink", color = "black", width = 0.5) +  # Bar with border
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), width = 0.2, linewidth = 1) +  # Error bars
+  geom_hline(yintercept = mu, linetype = "dashed", color = "red", linewidth = 1) + 
+  labs(
+    title = "Sample Mean Difference Between the Groups with Confidence Interval",
+    x = "Differnce",
+    y = "Reaction Time")
+```
+
+עכשיו אנחנו יכולים לראות בבירור שההפרש הממוצע בין הקבוצות נמצא הרבה מעל האפס, וכי הוא אינו מוכל במרווח הבטחון. עכשיו האיור מדגים את האפקט היטב.  
+
+`תרגיל`  
+החוקר התלהב מההצלחה המסחררת של שיתוף הפעולה עם המעבדה בארה"ב לגבי עיבוד אוטומטי. הוא החליט להמשיך בקו המחקר הזה וגייס מעבדה נוספת באנגליה. במחקר האנגלי התקבל ממוצע מדגם זהה למדגם האמריקאי (באופן מקרי).אך סטיית התקן במדגם זה שונה מאוד.   
+בתיבה מטה כבר נתון לכם הקוד בו השתמשנו קודם. ערכו בו את הפרמטרים של הסימולציה כך שסטיית התקן של המבחן באנגלית תהיה 2.8. לאחר מכן, בצעו את מבחן הt  על הנתונים שנוצרו. השתמשו ברמת מובהקות של 0.05 ובהשערה החד זנבית המתאימה.  
+
+```{r two_samp_t_ex, exercise=TRUE, exercise.eval = FALSE}
+# קודם כל נדמה את נתוני המדגם
+set.seed(234)
+# נקבע את הפרמטרים של המדגם
+sample_n <- 50
+# נדמה את זמני התגובה של כל קבוצה
+sample_rt_heb <- 1.8 
+sample_rt_eng <- 2
+# סטיית התקן של הקבוצה בדוגמה זאת נניח שוויון שונויות
+sample_sd_heb <- 0.3
+sample_sd_eng <- 0.3
+
+# נדמה שני מדגמים בעלי התפלגות נורמלית  
+reaction_time_heb <- rnorm(sample_n, mean = sample_rt_heb, sd = sample_sd_heb)
+reaction_time_eng_uk <- rnorm(sample_n, mean = sample_rt_eng, sd = sample_sd_eng)
+
+# בצעו את המבחן
+# רמז - שימו לב, האם ניתן להניח שוויון שונויות?
+t_test_result_uk <- t.test(x = , y = , alternative = , var.equal=, paired = )
+
+# לסיום הדפיסו 
+print(t_test_result_uk)
+
+```
+
+```{r two_samp_t_ex-solution}
+# קודם כל נדמה את נתוני המדגם
+set.seed(234)
+# נקבע את הפרמטרים של המדגם
+sample_n <- 50
+# נדמה את זמני התגובה של כל קבוצה
+sample_rt_heb <- 1.8 
+sample_rt_eng <- 2
+# סטיית התקן של הקבוצה בדוגמה זאת נניח שוויון שונויות
+sample_sd_heb <- 0.3
+sample_sd_eng <- 2.8
+
+# נדמה שני מדגמים בעלי התפלגות נורמלית  
+reaction_time_heb <- rnorm(sample_n, mean = sample_rt_heb, sd = sample_sd_heb)
+reaction_time_eng_uk <- rnorm(sample_n, mean = sample_rt_eng, sd = sample_sd_eng)
+
+# בצעו את המבחן
+t_test_result <- t.test(x = reaction_time_eng, y = reaction_time_heb, alternative = "greater", var.equal = FALSE, paired = FALSE)
+
+# לסיום הדפיסו את התוצאה
+t_test_result
+
+```
+
+```{r two_sample_t_q, echo = FALSE}
+
+question_text(
+  "<div style='direction: rtl;'>
+  מהו ערך הp המחושב?
+  
+  עגלו ל2 מקומות לאחר הנקודה העשרונית.
+  </div>",
+  answer("0.11", correct = TRUE),
+  answer("0.12", correct = TRUE),
+  answer("0.1192", correct = TRUE),
+  answer("0.119", correct = TRUE),
+  allow_retry = TRUE,
+  
+  correct="מעולה!", 
+  incorrect = "נסו שוב"
+)
+
+```
+
+###
+
+כלומר, הפעם למרות שממוצע המדגם היה זהה קיבלנו תוצאה שאיננה מובהקת, שכן ערך הp היה גדול מרמת המובהקות שלנו. בואו נציג את הנתונים כדי להבין למה.
+
+```{r}
+set.seed(234)
+# נקבע את הפרמטרים של המדגם
+sample_n <- 50
+# נדמה את זמני התגובה של כל קבוצה
+sample_rt_heb <- 1.8 
+sample_rt_eng <- 2
+# סטיית התקן של הקבוצה בדוגמה זאת נניח שוויון שונויות
+sample_sd_heb <- 0.3
+sample_sd_eng <- 2.8
+
+# נדמה שני מדגמים בעלי התפלגות נורמלית  
+reaction_time_heb <- rnorm(sample_n, mean = sample_rt_heb, sd = sample_sd_heb)
+reaction_time_eng_uk <- rnorm(sample_n, mean = sample_rt_eng, sd = sample_sd_eng)
+
+#  המבחן
+t_test_result_uk <- t.test(x = reaction_time_eng_uk, y = reaction_time_heb, alternative = "greater", var.equal = FALSE, paired = FALSE)
+
+#יצירת סיכום
+sample_mean_diff <- mean(reaction_time_eng_uk) - mean(reaction_time_heb)
+ci_lower <- t_test_result_uk$conf.int[1]
+# נדמה קצה עליון סימטרי לרווח הסמך
+ci_upper <- sample_mean_diff + (sample_mean_diff-t_test_result_uk$conf.int[1])
+# הפעם הערך אליו נשווה את ממוצע ההפרשים הוא 0 
+# שכן השערת האפס היא שאין הבדל
+mu = 0
+
+plot_data <- data.frame(
+  Group = "Group Difference",
+  Mean = sample_mean_diff,
+  CI_Lower = ci_lower,
+  CI_Upper = ci_upper
+)
+
+ggplot(plot_data, aes(x = Group, y = Mean)) +
+  geom_col(fill = "orange", color = "black", width = 0.5) +  # Bar with border
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), width = 0.2, linewidth = 1) +  # Error bars
+  geom_hline(yintercept = mu, linetype = "dashed", color = "red", linewidth = 1) + 
+  labs(
+    title = "Sample Mean Difference Between the Groups with Confidence Interval",
+    x = "",
+    y = "Reaction Time")
+```
+
+```{r two_samp_t_output_question, echo = FALSE}
+question("מדוע לא יכולנו לדחות את השערת האפס במקרה זה?",
+         answer("כיוון שממוצעי המדגם קרובים יותר זה לזה. ", message = "לא נכון, ממוצעי המדגים בשאלה זאת זהים לממוצעי המדגם האמריקאי בו נמצאה תוצאה מובהקת."),
+         answer(" כיוון שאי אפשר היה להניח שוויון שונויות במבחן הסטטיסטי ", message = " קרוב אבל לא בדיוק, שונות הדגימה אכן שונה בין המדגמים, אבל במצב בו במדגם הנוכחי הייתה נמצאת שונות נמוכה יותר (ובגלל זה לא היה ניתן להניח שוויון שונויות) עדיין היה ניתן לדחות את השערת האפס."),
+         answer("כיוון ששונות המדגם האנגלי גדולה באופן משמעותי ",correct = TRUE, message = "נכון! ניתן לראות שלמרות שהממוצע זהה, הרוב של רווח הסמך רחב בצורה משמעותית עקב השונות הגבוהה."),
+allow_retry = TRUE
+)
+```
+
+
+## מבחן t למדגמים מזווגים
+ועכשיו הגענו לרגע הגדול בו נתחיל לבחון את אפקט הסטרופ. אפקט סטרופ מובהק הינו מצב בו יש הבדל מובהק בין טריאלים תואמים ללא תואמים, כך שבטריאלים הלא תואמים זמן התגובה ארוך יותר.  
+
+עבור דוגמה זאת הנתונים כבר מוכנים ומאוכסנים בדאטה פריים שנקרא paired_data. בטבלה זאת נמצא את נתוניהם של 30 המשתתפים, בתנאי התואם (Congruent) ובתנאי הלא תואם (Incongruent) יחד עם מספר מזהה של הנבדק.  
+כדי לבדוק האם יש אפקט סטרופ ברמת הקבוצה נצטרך הפעם להשתמש במבחן t למדגמים מזווגים, שכן לכל נבדק יש נתונים בשני התנאים. העובדה שלכל תצפית בדגימה של התנאי התואם יש דגימה המקושרת אליה בתנאי הלא תואם הופכת את שתי הדגימות לתלויות.  
+
+התלות בין הדגימות מחייבת אותנו לקחת בחשבון את האפשרות שיש קשר בין שתי תצפיות של אותו משתתף בשני התנאים. באיור למטה נמחיש את הקשר הלינארי שנמצא בין התנאים, אשר הינו עדות לתלות בין הקבוצות.
+
+
+```{r}
+paired_scatter_plot <- ggplot(paired_data, aes(x = Congruent, y = Incongruent))+ geom_point(alpha = 0.8) + geom_smooth(method = "lm", color = "blue", se = FALSE) + 
+  labs(title = "Scatter Plot: Congruent vs Incongruent Trials", x = "Congruent", y = "Incongruent") + theme_minimal()
+paired_scatter_plot 
+
+```
+
+
+באיור זה ניתן לראות שיש קשר ברור בין זמני התגובה בשני התנאים. כך שמשתתפים שהיו מהירים יותר בתנאי התואם נטו להיות מהירים יותר גם בתנאי הלא תואם.  
+לכן, כאשר נרצה לבצע מבחן t המשווה בין התנאים נצטרך לקחת את זה בחשבון.  
+עכשיו בואו נציג את ההבדלים בין התנאים:
+
+
+```{r}
+
+summary_paired_data <- data.frame(Condition = c("Congruent", "Incongruent"),
+    Mean = c(mean(paired_data$Congruent),mean(paired_data$Incongruent)),
+    SD = c(sd(paired_data$Congruent), sd(paired_data$Incongruent))
+  )
+
+
+paired_barplot <- ggplot(summary_paired_data, aes(x = Condition, y = Mean, fill = Condition)) +
+  geom_col( color = "black", fill = "red",, width = 0.6) +  # Bar plot
+  geom_errorbar(aes(ymin = Mean - SD, ymax = Mean + SD), width = 0.2) +     # Error bars for SD
+  labs(
+    title = "Mean Reaction Time Congruent vs Incongruent Trials",
+    x = "Condition",
+    y = "Mean Reaction Time"
+  ) +
+  theme_minimal()
+
+paired_barplot
+```
+
+עכשיו כשברור לנו איך נראים ההבדלים בין הקבוצות אפשר לגשת לעניינים ולבצע את המבחן. אנחנו נשתמש באותה פונקציה, אך זכרו שכדי לערוך את המבחן יש לשנות את האופרטור paired לTRUE (אחרת יתבצע מבחן לדגימות בלתי תלויות).  כמו כן, שימו לב שהפעם העמודות הרלוונטיות ישלפו מתוך הטבלה שכבר טעונה מראש בלומדה.
+
+
+```{r}
+t_test_result <- t.test(x = paired_data$Congruent, 
+                        y = paired_data$Incongruent, paired = TRUE,
+                        alternative = "less")
+
+print(t_test_result)
+```
+
+`תרגיל`  
+מבחן t למדגמים מזווגים הינו בעצם ניתוח מקביל למבחן t למדגם בודד אשר משווה את הפרשי הזוגות  לתוחלת ידועה של אפס. אשר משקפת את השערת האפס שאין הבדל בין הקבוצות (כלומר שהוא שווה ל0).   
+בואו ננסה לבצע את המבחן כך. השתמשו בטבלה 
+paired_data 
+ייצרו עמודה חדשה אשר מכילה את הפרשי זמני התגובה והריצו מבחן t
+למדגם בודד על הפרשי זמני התגובה. כיוון שיש לנו השערה לגבי כיווניות האפקט הסטרופ השתמשו בהנחה המתאימה.
+
+רמז - שימו לב! האופן בו מחושב ההפרש ישפיע ישירות על סוג כיווניות ההשערה (חיובית או שלילית)
+
+
+```{r paired_t_ex, exercise=TRUE, exercise.eval = FALSE}
+# עריכת הנתונים
+
+#  בצעו את המבחן כאן
+t_test_result <- t.test()
+print(t_test_result)
+
+#####
+# אין צורך לערוך את הקוד מכאן
+#יצירת סיכום
+sample_mean_diff <- mean(paired_data$Incongruent) - mean(paired_data$Congruent)
+ci_lower <- t_test_result$conf.int[1]
+# נדמה קצה עליון סימטרי לרווח הסמך
+ci_upper <- sample_mean_diff + (sample_mean_diff-t_test_result$conf.int[1])
+# הפעם הערך אליו נשווה את ממוצע ההפרשים הוא 0 
+# שכן השערת האפס היא שאין הבדל
+mu = 0
+
+plot_data <- data.frame(
+  Group = "Group Difference",
+  Mean = sample_mean_diff,
+  CI_Lower = ci_lower,
+  CI_Upper = ci_upper
+)
+
+ggplot(plot_data, aes(x = Group, y = Mean)) +
+  geom_col(fill = "orange", color = "black", width = 0.5) +  # Bar with border
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), width = 0.2, linewidth = 1) +  # Error bars
+  geom_hline(yintercept = mu, linetype = "dashed", color = "red", linewidth = 1) + 
+  labs(
+    title = "Sample Mean Difference Between the Groups with Confidence Interval",
+    x = "",
+    y = "Reaction Time")
+
+
+```
+
+
+```{r paired_t_ex-solution}
+# עריכת הנתונים
+reaction_time_diff = paired_data$Incongruent - paired_data$Congruent
+
+#  המבחן
+t_test_result <- t.test(x = reaction_time_diff, mu=0, alternative="greater")
+
+#יצירת סיכום
+sample_mean_diff <- mean(paired_data$Incongruent) - mean(paired_data$Congruent)
+ci_lower <- t_test_result$conf.int[1]
+# נדמה קצה עליון סימטרי לרווח הסמך
+ci_upper <- sample_mean_diff + (sample_mean_diff-t_test_result$conf.int[1])
+# הפעם הערך אליו נשווה את ממוצע ההפרשים הוא 0 
+# שכן השערת האפס היא שאין הבדל
+mu = 0
+
+plot_data <- data.frame(
+  Group = "Group Difference",
+  Mean = sample_mean_diff,
+  CI_Lower = ci_lower,
+  CI_Upper = ci_upper
+)
+
+ggplot(plot_data, aes(x = Group, y = Mean)) +
+  geom_col(fill = "orange", color = "black", width = 0.5) +  # Bar with border
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), width = 0.2, linewidth = 1) +  # Error bars
+  geom_hline(yintercept = mu, linetype = "dashed", color = "red", linewidth = 1) + 
+  labs(
+    title = "Sample Mean Difference Between the Groups with Confidence Interval",
+    x = "",
+    y = "Reaction Time")
+print(t_test_result)
+```
+
+```{r paired_t_q, echo = FALSE}
+
+question_text(
+  "<div style='direction: rtl;'>
+  מהו ערך הt המחושב?
+  
+  עגלו ל2 מקומות לאחר הנקודה העשרונית.
+  </div>",
+  answer("20.14", correct = TRUE),
+  answer("20.15", correct = TRUE),
+  answer("20.147", correct = TRUE),
+  allow_retry = TRUE,
+  
+  correct="מעולה!", 
+  incorrect = "נסו שוב"
+)
+
+```
+
+## תצפיות קיצוניות
+
+אחרי שהבנו את העיקרון של ביצוע מבחן t אנחנו ממש צעד אחד מלקבל נתונים אמיתיים ולבצע עליהם את המבחן. כאשר נבצע את המבחן על נתונים אמיתיים חשוב להקדיש את הזמן להתבונן בנתונים ולהבין האם יש נתונים שיכולים להטות לנו את המבחן?  
+כבר נחשפתם לרעיון של תצפיות חריגות (outliers) אבל בואו נראה מה יכולות להיות ההשלכות שלהם על מבחן t.
+
+```{r}
+# נשתמש בנתונים מהמדגם המזווג וניצור טבלה חדשה עם תצפית חריגה מאוד
+# ניצור העתק של הטבלה
+paired_data_with_outliers = paired_data
+# נשנה ערך בודד למספר גדול מאוד
+paired_data_with_outliers$Congruent[1] = 5000
+# נבצע בדיוק את אותו מבחן
+t_test_result <- t.test(x = paired_data_with_outliers$Congruent, y = paired_data_with_outliers$Incongruent, paired = TRUE)
+
+print(t_test_result)
+```
+
+הכנסה של ערך בודד אחד שהינו שאיננו מתאים להתפלגות זמני התגובה הביאה לכך שלא יכולנו לדחות את השערת האפס, עבור מדגם שאנחנו יודעים שכן קיים בו אפקט.  
+בדומה לכך, המצב ההפוך יכול להתקיים גם כן, ייתכן ויתקבל מדגם בו לא קיים הבדל אמיתי בין התנאים אבל ערך קיצוני עשוי לגרום לכך שימצא אפקט בטעות.  
+
+```{r outliers_q, echo = FALSE}
+question("איך הייתם פותרים את הבעיה הזאת?",
+         answer("צריך להחליף את הערך הקיצוני בערך חסר", message ="זאת אכן אפשרות נכונה, אך היא לא היחידה. במקרה זה כיוון שמדובר במבחן מזווג אנחנו המבחן יתעלם מהערך החסר וגם מהערך המצומד אליו."),
+         answer("צריך להסיר את התצפית מהנתונים וגם את התצפית המזווגת אליה ",message = "הסרה של התצפית הקיצונית והתצפית המזווגת היא אכן אפשרות נכונה אך היא לא היחידה"),
+         
+         answer("צריך להחליף את הערך הקיצוני בממוצע המדגם", message = " זאת גם אפשרות בחלק מהמקרים, הייתרון שלה הוא שהיא מאפשרת לנו לשמר את דרגות החופש וממוצע המדגם הוא הערכה סבירה של הערך. אבל במקרה זה, בו ערך חריג בתנאי אחד מעלה את הנבדק כולו בספק, עדיף לבחור באופציה שמסירה אותו מהניתוח."),
+         answer("כל התשובות נכונות", correct = TRUE, message = "נכון, שתי אפשרויות אלה בעצם יבצעו את אותה פעולה, שכן ברגע שנריץ מבחן מזווג התוכנה תסנן לנו תצפיות חסרות יחד עם התצפיות המזווגת אליהן בכל מקרה. כלומר, אנחנו נבחר באפשרות של אובדן של דרגת חופש אחת כדי לאמוד את האפקט בצורה מדויוקת יותר"),
+allow_retry = TRUE
+)
+```
+
+איך נזהה מצב בו הנתונים כוללים ערכים קיצוניים?   
+קיבלתם נתונים ואתם רוצים לבצע עליהם מבחן סטטיסטי? - ההמלצה שלנו היא קודם כל להציג את הנתונים בצורה גרפית. האם יש בהם ערכים שלא מתאימים?
+
+עכשיו נתרגל את הרעיון.
+נחזור לדוגמה שהתחלנו איתה, החוקר המקומי החליט שכדאי שהוא ישחזר את הממצא שלו עם דוברי העברית ודגם דגימה נוספת של משתתפים מקומיים. אם המדגם הראשון היה אמין ואמד בצורה מדוייקת את זמן התגובה של המשתתפים לא נצפה שתהיה תוצאה שונה באופן חריג במדגם השני. הנתונים טעונים ללומדה בתוך טבלה שנקראית outlier_data.
+
+
+```{r}
+# נתחיל בביצוע המבחן
+t_test_result <- t.test(x = outlier_data$sample1, y = outlier_data$sample2, alternative = "two.sided", paired = FALSE)
+
+# נדפיס את התוצאה המלאה
+print(t_test_result)
+
+# קיבלנו הבדל מובהק
+# נציג את הנתונים ונראה איך זה נראה
+
+scatter_plot <- ggplot(outlier_data,  aes(x = sample1, y = sample2)) + geom_point()
+scatter_plot
+
+# אוי לא, זה נראה כאילו יש בנתונים שלנו רק 3 נקודות
+# אבל זה רק כי התצפיות הקיצוניות מאוד קיצוניות ביחס לנתונים 
+# בואו נתקרב לסקאלה המקורית של הנתונים
+scatter_plot + xlim(c(1,3)) + ylim(c(1,3))
+
+
+```
+
+`תרגיל`
+אחרי שזיהינו מה הבעיה, תקנו את הטבלה על ידי החלפת התצפיות הקיצוניות בערכים חסרים והריצו את המבחן שנית עם הנתונים המתוקנים.
+
+```{r outlier_t_ex, exercise=TRUE, exercise.eval = FALSE}
+# עריכת הנתונים
+outlier_data$sample1[____] <- NaN
+outlier_data$sample2[____] <- NaN
+
+#  בצעו את המבחן כאן
+t_test_result <- t.test()
+
+# שמרו את הערך הרצוי
+p_value <- 
+
+# הדפיסו את הערך (אין צורך לערוך)
+print(round(p_value, 2))
+```
+
+
+```{r outlier_t_ex-solution}
+# עריכת הנתונים
+outlier_data$sample1[outlier_data$sample1<0] <- NaN
+outlier_data$sample2[outlier_data$sample2>1000] <- NaN
+#  בצעו את המבחן כאן
+t_test_result <- t.test(x = outlier_data$sample1, y = outlier_data$sample2, alternative = "two.sided", paired = FALSE)
+
+# שמרו את הערך הרצוי
+p_value <- t_test_result$p.value
+
+# הדפיסו את הערך 
+print(round(p_value, 2))
+```
+
+```{r outlier_t_ex-check}
+grade_this({if (identical(.result, 0.25)) {
+    pass("מעולה! הערכים החסרים הוסרו.")
+  }
+  fail("בדקו האם כל הערכים החסרים הוסרו ונסו שוב!")
+})
+```
+
+## תרגיל מסכם
+ברור לנו שלאורך כל הלומדה רק חיכיתם לעבוד עם נתונים אמיתיים והנה הגיע הרגע. נשתמש בנתונים בהם השתמשתם לתרגיל המסכם בסמסטר הקודם על מטלת הסטרופ.  
+הורידו את הקובץ הנתונים של שיעור זה stroop_data וטענו את מבנה הנתונים לRstudio.  
+
+תזכורת:
+הדאטה מכיל כבר נתונים מסוננים ומסוכמים לנוחיותכם. 
+להלן הסבר קצר על העמודות:
+session id  - מספר אנונימי המקושר לכל משתתף  
+Mean_Accuracy - הדיוק הממוצע של אותו משתתף   
+Congruent - זמן התגובה הממוצע של כל משתתף בצעדים התואמים  
+Incongruent - זמן התגובה הממוצע של כל משתתף בצעדים הלא תואמים  
+
+* לשתי העמודות האחרונות קיימות שתי גרסאות. אלה שנקראו כמתואר למעלה ומכילות את זמן התגובה של כל הצעדים התואמים והלא תואמים ועמודות בהן זמני התגובה מחושבים בנפרד למילים בצבע אדום ולא אדום. עמודות אלה רלוונטיות לשאלה 3.  
+
+`שאלה 1`  
+בצעו מבחן t למדגמים תלויים עם ההשערה החד זנבית המתאימה ובדקו את אפקט הסטרופ בדגימה הנוכחית.
+ענו על השאלות הבאות והציגו גרף קופסא אשר מציג את הפרשי הממוצעים.
+לא זוכרים איך לייצר איור כזה? חזרו לחלק על מדגמים מזווגים.  
+
+הכניסו את הערכים הבאים מתוך תוצאות המבחן עם שתי ספרות לאחר הנקודה העשרונית:
+```{r final_q_5, echo = FALSE}
+
+question_text("t value",
+  answer("-51.38", correct = TRUE),
+  answer("51.38", correct = TRUE),
+  answer("-51.47", correct = TRUE),
+  answer("51.47", correct = TRUE),
+  allow_retry = TRUE,
+    
+  correct="כל הכבוד! קיבלתם ערך משמעותי ", 
+  incorrect = "וודאו שהשתמשתם בפרמטרים הנכונים ונסו שוב."
+)
+
+```
+
+
+```{r final_q_7, echo = FALSE}
+question("האם ניתן לדחות את השערת האפס?",
+         answer("חד משמעית כן", correct = TRUE),
+         answer("ממש לא", message = "בטוח? בדקו את התשובה."),
+         answer("לא ברור לי", message = "אז זאת ההזדמנות להבין. לאחר הסינונים הגרף היה אמור להיראות כמו מקבץ של נקודות שנמצאות כמעט כולן על האלכסון, כך שתגובה ארוכה בתנאי אחד מצביעה על סיכוי גבוה לתשובה ארוכה גם בתנאי השני. זוהי המהות של קשר לינארי. "),
+allow_retry = TRUE
+)
+```
+
+
+`שאלה 2`  
+
+ בצעו את המבחן שנית הפעם עם השערה דו זנבית כדי לחשב רווח הסמך המלא ברמת בטחון של 99%.  
+
+```{r final_q_8_1, echo = FALSE}
+
+question_text("מהו ההפרש המינימלי של זמני התגובה לפי רווח הסמך (עם שתי ספרות לאחר הנקודה העשרונית)?",
+  answer("-48.20", correct = TRUE),
+  answer("-48.21", correct = TRUE),
+  answer("-48.27", correct = TRUE),
+  answer("43.60", correct = TRUE),
+  answer("43.66", correct = TRUE),
+  answer("43.67", correct = TRUE),
+  allow_retry = TRUE,
+  correct="נכון מאוד!", 
+  incorrect = "האם התחשבתם בהשערה וברמת הבטחון הנכונה?"
+)
+
+```
+
+```{r final_q_8_2, echo = FALSE}
+
+question_text("מהו ההפרש המקסימלי של זמני התגובה לפי רווח הסמך (עם שתי ספרות לאחר הנקודה העשרונית)?",
+  answer("48.20", correct = TRUE),
+  answer("48.27", correct = TRUE),
+  answer("-43.60", correct = TRUE),
+  answer("-43.67", correct = TRUE),
+  answer("-43.66", correct = TRUE),
+  answer("-43.61", correct = TRUE),
+  allow_retry = TRUE,
+    
+  correct="נכון מאוד!", 
+  incorrect = "האם הכנסתם את הערך המעוגל לשתי ספרות לאחר הנקודה העשרונית?"
+)
+
+```
+
+`שאלה 3`  
+
+בשאלה זאת נשתמש במבחן למדגמים מזווגים.  
+
+לחוקר במחלקה הייתה השערה שלצבע אדום יש משמעות ביולוגית ולכן לדעתו העיבוד החזותי של צבע זה תהיה מהירה יותר. כיוון שהצבע מעובד מהר יותר, לדעת החוקר צעדים בניסוי שמוצגים בצבע אדום אמורים לייצר אפקט סטרופ קטן יותר. כלומר, הפרש זמן התגובה בין צעדים לא תואמים לתואמים הצבועים באדום יהיה נמוך יותר מאשר ההפרש בין צעדים לא תואמים לתואמים בכל שאר הצבעים. 
+בדקו את ההשערה המתוארת על ידי השוואה של הפרשי זמני התגובה (אפקט סטרופ) בטריאלים שהוצגו באדום לכלאה שלא. השתמשו בהשערה החד זנבית המתאימה. 
+
+שימו לב - 
+צרו שתי עמודות חדשות האומדות את אפקט הסטרופ (הצעדים הלא תואמים פחות התואמים! הכיווניות חשובה!), אחת לצעדים בצבע אדום ואחת לצעדים בשאר הצבעים.
+
+בצעו מבחן t למבחנים מזווגים על שתי העמודות האלה. תחת ההשערה שבצבע האדום האפקט יהיה קטן יותר (שימו לב לסדר ההכנס למבחן).  
+
+הכניסו את הערכים הבאים מתוך תוצאות המבחן עם שתי ספרות לאחר הנקודה העשרונית:  
+
+```{r final_q_9, echo = FALSE}
+
+question_text(
+  "t value",
+  answer("-4.47", correct = TRUE),
+  answer("-4.46", correct = TRUE),
+  answer("4.43", correct = TRUE),
+  answer("4.44", correct = TRUE),
+  answer("-4.43", correct = TRUE),
+  answer("-4.44", correct = TRUE),
+  allow_retry = TRUE,
+    
+  correct="מצויין! ", 
+  incorrect = "וודאו שהשתמשתם בפרמטרים הנכונים ונסו שוב."
+)
+
+```
+
+```{r final_q_10, echo = FALSE}
+
+question_text(
+  "p value",
+  answer("8.21e-06", correct = TRUE),
+  answer("8.20e-06", correct = TRUE),
+  answer("4.768e-06", correct = TRUE),
+  answer("4.76e-06", correct = TRUE),
+  answer("4.77e-06", correct = TRUE),
+  allow_retry = TRUE,
+    
+  correct="נכון מאוד!", 
+  incorrect = "האם הכנסתם את הערך בפורמט מקוצר?"
+)
+
+```
+
+```{r final_q_11, echo = FALSE}
+question("מה היא המסקנה שניתן להסיק על סמך מבחן זה בלבד ?",
+         answer("אפקט הסטרופ הינו קטן יותר כאשר צבע המילה הוא באדום, דבר המאשש את השערת החוקר ", ,correct = TRUE, message = "נכון מאוד"),
+         answer("אפקט הסטרופ הינו גדול יותר כאשר צבע המילה הוא באדום, דבר המאשש את השערת החוקר", message = "לא נכון, חשבו שוב על הכיווניות" ),
+         answer("לא ניתן לדחות את השערת האפס במקרה זה ולכן השערת החוקר שגויה", message = "לא נכון, חזרו לניתוח שביצעתם ובדקו האם ניתן לדחות את השערת האפס או לא."),
+allow_retry = TRUE
+)
+```
+
+
+העתיקו את הקוד שלכם מהסטודיו לתיבה הזאת והגישו:
+```{r submit_final, echo = FALSE}
+  question_text(
+    "Please enter the code here",
+    incorrect = "Excercise was submitted!",
+    correct = "Excercise was submitted!",
+    answer(text = "asd",message="DFGDF"),
+    answer(text = "",correct = TRUE),
+    rows = 10,
+    trim = FALSE, allow_retry = TRUE
+  )
+```
+
+
+## משוב
+
+בחלק זה נבקש את המשוב שלכם על הלומדה. אנא ענו בכנות וביסודיות, על מנת שנוכל להשתפר. התשובות ישמרו בצורה אנונימית ולא ישפיעו על בדיקת התרגיל עצמה.  
+שימו לב: ברוב השאלות אין אפשרות לשנות את התגובה לאחר לחיצה על כפתור ההגשה.
+
+```{r survey_q1, echo = FALSE}
+question("מה הייתה רמת הקושי של הלומדה עבורך? יש להתייחס לכמה הבנת את החומר ולרמת הקושי של התרגול עבורך. ",
+         type="single",
+         answer("קלה"        ,correct=TRUE,  message = "תגובתך: קלה"),
+         answer("בינונית"    ,correct=TRUE,  message = "תגובתך: בינונית"),
+         answer("מאתגרת"     ,correct=TRUE,  message = "תגובתך: מאתגרת"),
+         answer("קשה"        ,correct=TRUE,  message = "תגובתך: קשה"),
+         answer("קשה מאוד"   ,correct=TRUE,  message = "תגובתך: קשה מאוד"),
+         correct = "",
+         incorrect = "",
+         allow_retry = TRUE
+)
+```
+
+```{r survey_q2, echo = FALSE}
+question("עד כמה החומר הנלמד ביחידה הועבר בצורה ברורה לדעתך?",
+         type="single",
+         answer("במידה רבה"      , correct=TRUE,  message = "תגובתך: במידה רבה"),
+         answer("במידה סבירה" ,    correct=TRUE,  message = "תגובתך: במידה סבירה"),
+         answer("באופן חלקי"  ,    correct=TRUE,  message = "תגובתך: באופן חלקי"),
+         answer("במידה מעטה"  ,correct=TRUE,  message = "תגובתך: במידה מעטה"),
+         answer("במידה מעטה מאוד",correct=TRUE,  message = "תגובתך: במידה מעטה מאוד"),
+         correct = "",
+         incorrect = "",
+         allow_retry = TRUE)
+```
+
+```{r survey_q3, echo = FALSE}
+question("כמה זמן לקח לך לפתור את הלומדה בערך?",
+         type="single",
+         answer("פחות משעה"      , correct=TRUE,  message = "תגובתך: פחות משעה"),
+         answer("שעה" ,    correct=TRUE,  message = "תגובתך: שעה"),
+         answer("שעתיים"  ,    correct=TRUE,  message = "תגובתך: שעתיים "),
+         answer("שלוש שעות"  ,correct=TRUE,  message = "תגובתך:  שלוש שעות"),
+         answer("ארבע שעות ומעלה",correct=TRUE,  message = "תגובתך:  ארבע שעות ומעלה "),
+         correct = "",
+         incorrect = "",
+         allow_retry = TRUE)
+```
+
+```{r survey_q4, echo = FALSE}
+question(" אילו נושאים בלומדה היו קשים במיוחד עבורך?",type="learnr_checkbox",
+         answer("התפלגות t", correct=TRUE),
+         answer("שימוש בפונקציית המבחן", correct=TRUE),
+         answer("מבחן למדגם בודד", correct=TRUE),
+         answer("מבחן לשני מדגמים", correct=TRUE),
+         answer("מבחן למדגמים מזווגים", correct=TRUE),
+         answer(" תצפיות קיצוניות", correct=TRUE),
+         answer("לא היה נושא קשה במיוחד", correct=TRUE),
+         correct = "תשובתך התקבלה. תודה על הפירוט",
+         try_again = "תשובתך התקבלה. תודה על הפירוט",
+         incorrect = "תשובתך התקבלה. תודה על הפירוט",
+         allow_retry = TRUE
+)
+```
+
+```{r survey_q5, echo = FALSE}
+  question_text(
+    " מצאת טעות? ספר/י לנו עליה (יש להקפיד ולציין את שם הפרק)",
+    incorrect = "תשובתך התקבלה!",
+    correct = "תשובתך התקבלה!",
+    answer(text = "asd",message="DFGDF"),
+    answer(text = "",correct = TRUE),
+    rows = 10,
+    trim = FALSE
+  )
+```
+
+```{r survey_q6, echo = FALSE}
+  question_text(
+    "יש לך עוד משהו לספר לנו? נשמח לשמוע משוב מפורט, הצעות כלליות או ספציפיות לפרק מסוים לגבי יחידה זאת.",
+    incorrect = "תשובתך התקבלה",
+    correct = "תשובתך התקבלה",
+    answer(text = "asd",message="DFGDF"),
+    answer(text = "",correct = TRUE),
+    rows = 10,
+    trim = FALSE
+  )
+```
+
+
+## הגשת התרגיל
+  סיימת? מעולה! עכשיו הגיע הזמן להגיש את התרגיל.  
+  יש ללחוץ על הכפתור:  Generate  
+  להעתיק את הטקסט שמופיע בחלון למטה ולהגישו במודל  
+  בהצלחה!
+
+```{r context="server"}
+learnrhash::encoder_logic()
+```
+
+```{r encode, echo=FALSE}
+learnrhash::encoder_ui()
+```
+
+
+הדביקו את קוד הhash בתוך הגרשיים בפונקצייה הבאה כדי לוודא שעניתם על כל השאלות והתרגילים בלומדה.
+
+```{r hash_check,  exercise = TRUE, exercise.eval = FALSE}
+
+check_hash_code("")
+
+```

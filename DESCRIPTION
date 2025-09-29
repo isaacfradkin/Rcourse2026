@@ -1,0 +1,28 @@
+Package: Rcourse
+Title: Rcourse for BA students in the Psychology Department, Hebrew University of Jerusalem
+Version: 2.0
+Authors@R: c( 
+    person("Isaac", "Fradkin", role = "cre",email = "itzik.fradkin@mail.huji.ac.il"),
+    person("Boaz", "Rosenberg", role = "aut",email = "boazrsnbrg@gmail.com"),
+    person("Chen", "Guata",role = "aut",email ="chen.gueta1@mail.huji.ac.il"))
+Description: This package is designed to help BA students at the HUJI Psychology department get familiar with R. 
+License: file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Suggests: 
+    learnr
+Imports: 
+    BayesFactor,
+    ggcheck (>= 0.0.5),
+    ggcorrplot,
+    gradethis (>= 0.2.14),
+    learnrhash (>= 0.2.0),
+    pracma,
+    psych,
+    readr
+Remotes:  
+    rstudio/gradethis,
+    rstudio/ggcheck,
+    rundel/learnrhash
+LazyData: true
