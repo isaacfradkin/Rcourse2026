@@ -1,5 +1,5 @@
 ---
-title: "Semester A: Summary exercise" 
+title: "Lesson 08: Semester A Final assignment" 
 author: "Copyright 2025 Psychology Department. Hebrew University of Jerusalem. All rights reserved"
 
 output:
