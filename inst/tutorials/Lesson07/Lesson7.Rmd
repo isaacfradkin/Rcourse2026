@@ -4,8 +4,8 @@ author: "Copyright 2025 Psychology Department. Hebrew University of Jerusalem. A
 
 output:
   learnr::tutorial:
-     progressive: true
-     allow_skip: false
+    progressive: true,
+    allow_skip: true,
     
 description: >
  <div style='direction: rtl;'>
@@ -44,7 +44,7 @@ library(learnr)
 library(dplyr)
 library(gradethis)
 
-knitr::opts_chunk$set(error = TRUE, warning = FALSE) 
+knitr::opts_chunk$set(error = TRUE, warning = TRUE) 
 
 {
 exercises_df = data.frame(
@@ -199,13 +199,14 @@ grade_result(
 
    [פונקציות בסיסיות](https://iqss.github.io/dss-workshops/R/Rintro/base-r-cheat-sheet.pdf)
   
-   [עריכת נתונים עם החבילות dplyr וtidyr שילמדו ביחידה 5](https://www.rstudio.com/wp-content%2Fuploads%2F2015%2F02%2Fdata-wrangling-cheatsheet.pdf%2F)
-  
-   [מאגר של דפי מידע נוספים במגוון נשאים](https://posit.co/resources/cheatsheets/)
+   [עריכת נתונים עם החבילות dplyr שילמדו ביחידה 5](https://nyu-cdsc.github.io/learningr/assets/data-transformation.pdf)
+    
+   [תרשימים בggplot](https://posit.co/wp-content/uploads/2022/10/data-visualization-1.pdf)
+    
    
 :::
 
-## בשימוש נכון בבינה מלאכותית
+## שימוש נכון בבינה מלאכותית
 
 ### מבוא
 
@@ -227,7 +228,7 @@ grade_result(
 
 ### בירור לגבי פונקציות
 
-השימוש הנפוץ ביותר בבינה מלאכותית, בו הוא גם בדרך כלל מצטיין, כולל
+השימוש הפשוט ביותר בבינה מלאכותית, בו הוא גם בדרך כלל מצטיין, כולל
 התייחסות אליו כאל מאגר מידע. במקום לנסות מילות מפתח שונות ולגלול ברחבי
 הרשת עד שתמצאו את הפונקציה הספציפית שאתם צריכים, או רשומה נוחה לגבי אופן
 השימוש בה - בינה מלאכותית בדרך כלל תדע לספק לכם תשובות מהירות ומבוססות לגבי
@@ -293,6 +294,7 @@ data.frame(session = c("s01_t1","s01_t2","s01_t3","s02_t1","s02_t2"),
 `תרגיל` הריצו את קטע הקוד הבאה והיעזרו במנוע בינה מלאכותית לבחירתכם כדי
 להבין את מקור השגיאות ולתקן אותן. שימו לב - הקוד מכיל מספר שגיאות שונות.
 
+
 ```{r warnings, exercise = TRUE, exercise.setup = "prepare-df1"}
 # df1:
 # הטבלה מתארת את הציונים של נבדק בכמה חזרות שונות של אותה המטלה
@@ -306,36 +308,38 @@ df1 %>% head() %>% print() # הדפסת השורות הראשונות
 df1_summary = df1 %>% 
   group_by(subject) %>%                      
   summarise(trial_amount = max(trial), # מספר החזרות שביצע
-            score = mean(score),       # הציון הממוצע 
-            cumulative_score = sum(score))    # הציון המצטבר
+            mean_score = mean(score))       # הציון הממוצע 
+               
 
-cumulative_score = df1_summery %>% pull("cumulative_score")
+mean_scores = df1_summery %>% pull(mean_score)
 
-print(cumulative_score)
+print(mean_scores)
 
 ```
 
 ```{r warnings-check}
-set.seed(111)
 
 
-grade_result(
-  pass_if(~identical(.result,
-                     
-                     
-                     
- data.frame(subject = rep(1:5,each = 4),
-            trial   = rep(1:4,5),
-            score   = round(rep(1:4,5) + rnorm(20, 20,5)))  %>% 
-  group_by(subject) %>%                       
-  summarise(trial_amount = max(trial, na.rm = T), # מספר החזרות שביצע
-            cumulative_score = sum(score),
-            score = mean(score, na.rm = T)     # הציון הממוצע 
-            )  %>% pull(cumulative_score) )),
-         
-  correct="נהדר!", 
-  incorrect = "נסו שוב, משהו ככל הנראה השתבש"
-)
+grade_this({
+  
+  target  = df1 %>% 
+    group_by(subject) %>%                      
+    summarise(trial_amount = max(trial, na.rm = T), 
+              mean_score = mean(as.numeric(score), na.rm = T))   %>%
+    pull(mean_score)
+  
+  result = user_object_get("mean_scores")
+
+   if (is.na(sum(result))){
+     fail("האם הוקטור שהודפס נראה תקין?")
+   } else if (identical(target, result)){
+     pass("עבודה מצוינת!")
+   }  else {
+     fail("עדיין ישנה שגיאה בקוד")
+   }
+  
+   }
+  )
 ```
 
 ### יצירת קטעי קוד
