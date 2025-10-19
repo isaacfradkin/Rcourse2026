@@ -1,5 +1,5 @@
 ---
-title: "Lesson 07: Coding resources" 
+title: "Lesson 07: Coding resources (Prerequisite for the summary Exercise)" 
 author: "Copyright 2025 Psychology Department. Hebrew University of Jerusalem. All rights reserved"
 
 output:
