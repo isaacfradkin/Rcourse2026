@@ -179,7 +179,7 @@ for (i in 1:n_iter){
 ```
 
 הרצנו את הלולאה ועכשיו יכולנו לראות את הממוצע של 5 מדגמים שונים אקראיים שונים. אנחנו יכולים להתרשם מכך שיש תנודות בממוצע, לפעמים הוא מתחת לממוצע המקורי, לפעמים שווה לו ולפעמים מעליו.  
-כמובן ש5 ערכים הם עדיין לא התפלגות ממש. לכן נצטרך להוסיף עוד חזרות כדי לדמות את תפלגות הממוצע. 
+כמובן ש5 ערכים הם עדיין לא התפלגות ממש. לכן נצטרך להוסיף עוד חזרות כדי לדמות את התפלגות הממוצע. 
 כדי שממש נוכל לראות את ההתפלגות אנחנו צריכים לשמור את הממוצעים של המדגמים המדומים בוקטור, ממוצעים אלה יהוו בעצם את התפלגות הדגימה המדומה של הממוצע.   
 
 ### שמירת והצגת התוצאות
@@ -231,7 +231,7 @@ hist_plot + geom_vline(xintercept = original_mean, color ="red")
 
 הערה - הימנעו מלהדפיס משתנים תוך כדי הלולאה, זה יאט את זמן הריצה ויבצע המון הדפסות.
 
-```{r boot_loop_ex, exercise=TRUE, exercise.eval = FALSE }
+```{r boot_loop_ex, exercise=TRUE, exercise.eval = FALSE,exercise.reveal_solution=FALSE}
 set.seed(123)
 # נדמה נתונים מהתפלגות נורמלית
 original_data <- rnorm(30 , mean=0, sd=2)
@@ -298,8 +298,8 @@ grade_result(pass_if(~identical(.result, -0.23)),
 
 בואו נראה דוגמאות:  
 
-נתחיל עם דוגמה פשוטה שכן משתמשת בהתלפגות נורמלית ונבנה עליה.   
-במקרה זה הסיבה שנבחר בחישוב הא-פרמטרי שלרווח הסמך היא שנרצה להשתמש בחציון ולא בממוצע.  
+נתחיל עם דוגמה פשוטה שכן משתמשת בהתפלגות נורמלית ונבנה עליה.   
+במקרה זה הסיבה שנבחר בחישוב הא-פרמטרי של רווח הסמך היא שנרצה להשתמש בחציון ולא בממוצע.  
 נניח שדגמנו את השכר של מי שלמד תכנות במהלך התואר הראשון 5 שנים לאחר סיום התואר. המטרה הייתה לבחון איך לימודי תכנות השפיעו על השכר, השערת האפס היא שחציון השכר של מי שלמד תכנות כחלק מלימודי התואר תהיה זהה לשכר החציוני   במשק (9100). בואו נבחן את ההשערה.  
 
 ```{r}
@@ -331,7 +331,7 @@ alpha <- 1-conf_level
 lower <- quantile(sampled_medians, alpha / 2)
 upper <- quantile(sampled_medians, 1 - alpha / 2)
 # נציג
-paste0("the bootastaped CI is: ", round(lower), " - ", round(upper), " ILS")
+paste0("the bootstrapped CI is: ", round(lower), " - ", round(upper), " ILS")
 
 
 # נרצה  להשוות את ההתפלגות לשכר החציוני
@@ -428,7 +428,7 @@ long_df <- gather(boot_dist_df, key="Dist", value="Mean")
 ggplot(long_df, aes(x=Mean, col=Dist)) + geom_histogram(fill="white", alpha=0.5, position="identity", bins =100)
 
 # בואו נשווה אותן לממוצע של ההתפלגות האמיתית
-print(paste0("The difference between original distribution and bootsrtap mean is: ", mean(bootstrap_data)-mean(original_mean)))
+print(paste0("The difference between original distribution and bootstrapped mean is: ", mean(bootstrap_data)-mean(original_mean)))
 print(paste0("The difference between original distribution and sample distribution means is: ", mean(sampled_dist)-mean(original_mean)))
 # ואחת לשניה
 print(paste0("The difference between distribution means is: ", mean(bootstrap_data)-mean(sampled_dist)))
@@ -509,13 +509,14 @@ print(paste0("The difference between distribution means is: ", mean(bootstrap_da
 
 ### מבוא
 
-מבחן פרמוטציות דומה לבוטסטרפ, אך הוא מאפשר לנו ממש לבצע בדיקת השערות.  
-נוכל להשתמש במבחן זה במקרה בו הנחות הסטטיסטיקה הפרמטרית מופרות (וגם אם לא), רק שבמקום להשוות את סטטיסטי להתפלגות יידועה (למשל התפלגות t) אנחנו נייצר התפלגות המייצגת את השערת האפס מנתוני המדגם הנוכחי.  
+מבחן פרמוטציות דומה לבוטסטרפ, אך הוא מאפשר לנו ממש לבצע בדיקת השערות. 
+נוכל להשתמש במבחן זה במקרה בו הנחות הסטטיסטיקה הפרמטרית מופרות, וגם אם לא, רק שבמקום להשוות את הסטטיסטי שלנו להתפלגות ידועה (למשל התפלגות t) אנחנו נייצר התפלגות המייצגת את השערת האפס מנתוני המדגם הנוכחי.  
 משמעות המונח פרמוטציה הוא ביצוע של תהליך חזרתי, הכולל מספר איטרציות ובכל איטרציה יש ערבוב של הנתונים. במקרה של מבחן פרמוטציות אנחנו נרצה לבצע דווקא דגימה ללא החזרה, כך שכל תצפית במדגם המקורי תחזור על עצמה פעם אחת, אך נדגום את הנתונים כך שגורם התלות עליו נרצה לבצע את המבחן מעורבב בצורה אקראית.  
 
 ## מבחן פרמוטציות לשני מדגמים בלתי תלויים
 קצת באוויר? זה רעיון מורכב, בואו נפרק אותו עם דוגמה ספציפית.  
-בואו נחזור לדוגמה שראינו לגבי שכר. למה דווקא שכר? בגלל שנתוני שכר נהוג למדוד בחציון, שכן הממוצע עשוי להיות מוטה ולא לשקף את האוכלוסיה.  
+בואו נחזור לדוגמה שראינו לגבי שכר. למה דווקא שכר? בגלל שנתוני שכר נהוג למדוד בחציון, שכן הממוצע עשוי להיות מוטה ולא לשקף את האוכלוסיה.   
+
 עכשיו נרצה לבצע בדיקת השערות לגבי השאלה. נוכל לעשות זאת על ידי השוואה של שתי קבוצות. נאסוף מדגם של סטודנטים שלמדו תכנות בתואר וכאלה שלא. השערת האפס היא שאין הבדל בין הקבוצות ואילו ההשערה האלטרנטיבית שאפשר היה לנסח היא שחציון השכר של מי שלמדו תכנות שונה משל אלה שלא.  
 
 עד כה, אמור להיות מוכר, כמו מבחן t. אבל כדי לבצע את המבחן בצורה א-פרמטרית נצטרך בעצם ליצור את הנחת האפס באמצעות פרמוטציות ולהשוות אותה למדגם הנוכחי.  
@@ -571,12 +572,12 @@ print(length(all_salary_data)==length(all_salary_temp))
 # אז נקצה אותם אקראית
 
 
-temp_programing <- all_salary_temp[1:groupP_size]
-temp_no_programing <- all_salary_temp[(groupP_size+1):nrow(salary_df)]
+temp_programming <- all_salary_temp[1:groupP_size]
+temp_no_programming <- all_salary_temp[(groupP_size+1):nrow(salary_df)]
 
 # יופי יש לנו מדגם מדומה
 # נוכל לחשב את הפרש החציונים 
-temp_median_diff <- median(temp_programing) - median(temp_no_programing)
+temp_median_diff <- median(temp_programming) - median(temp_no_programming)
 print(temp_median_diff)
 
 ```
@@ -596,8 +597,8 @@ groupP_size <-
 # ערבבו אותו
 all_salary_temp <- sample()
 # חלקו לקבוצות
-temp_programing <- 
-temp_no_programing <- 
+temp_programming <- 
+temp_no_programming <- 
 
 # חשבו והדפיסו את ההפרש במיקום האחוזון ה10
 temp_quantile_diff <- 
@@ -615,11 +616,11 @@ groupP_size <- length(salary_df$salary[salary_df$group=="programming"])
 # ערבבו אותו
 all_salary_temp <- sample(all_salary_data, replace = FALSE)
 # חלקו לקבוצות
-temp_programing <- all_salary_temp[1:groupP_size]
-temp_no_programing <- all_salary_temp[(groupP_size+1):nrow(salary_df)]
+temp_programming <- all_salary_temp[1:groupP_size]
+temp_no_programming <- all_salary_temp[(groupP_size+1):nrow(salary_df)]
 
 # חשבו והדפיסו את ההפרש במיקום האחוזון ה10
-temp_quantile_diff <-  quantile(temp_programing, probs = 0.1) -quantile(temp_no_programing, probs = 0.1)
+temp_quantile_diff <-  quantile(temp_programming, probs = 0.1) -quantile(temp_no_programming, probs = 0.1)
 print(as.numeric(round(temp_quantile_diff)))
 
 ```
@@ -650,11 +651,11 @@ for (i in 1:n_iter){
   # נערבב את הנתונים
   all_salary_temp <- sample(all_salary_data, replace = FALSE)
   # החצי הראשון יהיה הקבוצה שלמדה תכנות
-  temp_programing <- all_salary_temp[1:groupP_size]
+  temp_programming <- all_salary_temp[1:groupP_size]
   # והחצי השני יהיה קבוצה שלא
-  temp_no_programing <- all_salary_temp[(groupP_size+1):nrow(salary_df)]
+  temp_no_programming <- all_salary_temp[(groupP_size+1):nrow(salary_df)]
   # נחשב את הפרש החציונים
-  temp_median_diff <- median(temp_programing) - median(temp_no_programing)
+  temp_median_diff <- median(temp_programming) - median(temp_no_programming)
   #נאכסן את התוצאה
   H0_dist[i] <- temp_median_diff
 } 
@@ -688,7 +689,7 @@ hist_plot
 היחידה לשוויון הזדמנויות רצתה להבין האם יכול להיות שיש פערים מגדריים בנתוני השכר שבידינו.
 בצעו מבחן פרמוטציות נוסך על הנתונים באמצעות עריכת הקוד שעבדנו איתו קודם. השוו את הפרשי החציונים בין המגדרים להתפלגות האפס והדפיסו את ערך הp שהתקבל .
 בקוד שלכם חשבו את הפרש החציונים כההפרש בין גברים לנשים (כלומר החסירו את משכורות הנשים משל הגברים).   
-רמז - האם צריך לשנות משהו בלולאה עצמה? 
+רמז - האם צריך לשנות משהו בלולאה עצמה מלבד השמות של הקבוצות? 
 
 ```{r perm_2samp_ex, exercise=TRUE, exercise.eval = FALSE,exercise.reveal_solution = FALSE}
 set.seed(234)
@@ -702,11 +703,11 @@ for (i in 1:n_iter){
   # נערבב את הנתונים
   all_salary_temp <- sample(all_salary_data, replace = FALSE)
   # החצי הראשון יהיה הקבוצה שלמדה תכנות
-  temp_programing <- all_salary_temp[1:groupF_size]
+  temp_programming <- all_salary_temp[1:groupF_size]
   # והחצי השני יהיה קבוצה שלא
-  temp_no_programing <- all_salary_temp[(groupF_size+1):nrow(salary_df)]
+  temp_no_programming <- all_salary_temp[(groupF_size+1):nrow(salary_df)]
   # נחשב את הפרש החציונים
-  temp_median_diff <- median(temp_programing) - median(temp_no_programing)
+  temp_median_diff <- median(temp_programming) - median(temp_no_programming)
   #נאכסן את התוצאה
   H0_dist[i] <- temp_median_diff
 } 
@@ -738,11 +739,11 @@ for (i in 1:n_iter){
   # נערבב את הנתונים
   all_salary_temp <- sample(all_salary_data, replace = FALSE)
   # החצי הראשון יהיה הקבוצה שלמדה תכנות
-  temp_programing <- all_salary_temp[1:groupF_size]
+  temp_programming <- all_salary_temp[1:groupF_size]
   # והחצי השני יהיה קבוצה שלא
-  temp_no_programing <- all_salary_temp[(groupF_size+1):nrow(salary_df)]
+  temp_no_programming <- all_salary_temp[(groupF_size+1):nrow(salary_df)]
   # נחשב את הפרש החציונים
-  temp_median_diff <- median(temp_programing) - median(temp_no_programing)
+  temp_median_diff <- median(temp_programming) - median(temp_no_programming)
   #נאכסן את התוצאה
   H0_dist[i] <- temp_median_diff
 } 
@@ -843,7 +844,7 @@ print(paste0("Original Difference Mean: ", mean(after-before), ", Shuffled: ", m
 `תרגיל`  
 בתיבת הקוד קיים לכם הקוד שהודגם למעלה. הוסיפו את הלולאה החיצונית והריצו אותה (כמספר הפרמוטציות שמוגדרות בתיבה).  
 לסיום, חשבו מה הסיכוי שיתקבלו הפרשי המדגם המקורי תחת התפלגות האפס המדומה.  
-
+תזכורת: השערת החוקר היא שלימודי תכנות מעלים את תוחלת השכר.
 משהו לא מצליח ולא הבנתם מה? יכול להיות שיהיה יותר נוח לכם לעבוד על התרגיל בRstudio.
 
 ```{r perm_dep_loop_ex, exercise=TRUE, exercise.eval = FALSE }
@@ -1020,10 +1021,10 @@ question("הרצתי את אותו מבחן פעמיים ודווקא כן קי�
 ההתאמה היחידה שנצטרך לבצע היא בעצם למצוא את הדרך להפוך את ערך הייחוס ל0 שכן שינוי הסימן בצורה אקראית מבוסס על ערך ייחוס של 0. נוכל לעשות זאת על ידי החסרה של ערך הייחוס מהנתונים עצמם. כלומר על השוואת ההפרש בין כל ערך במדגם לערך היחוס, תחת השערת האפס שאין הבדל.
 
 `תרגיל`  
-כתבו את הקוד שיבצע מבחן פרמוטציות ויבדוק האם המטבע הוגן. הנתונים קיימים כבר בסביבת העבודה שלכם בוקטור שנקרא: coin_sample. כל ערך בוקטור מייצג את הסיכוי לקבל עץ על פני 10 חזרות לכל מטבע שנדגם.  
+כתבו את הקוד שיבצע מבחן פרמוטציות ויבדוק האם המטבע הוגן. הנתונים קיימים כבר בסביבת העבודה שלכם בוקטור שנקרא: coin_sample. כל ערך בוקטור מייצג את אחוז הפעמים בהן התקבל עץ על פני 10 הטלות לכל מטבע שנדגם.  
 
 
-```{r one_samp_perm_ex, exercise=TRUE, exercise.eval = FALSE,exercise.reveal_solution = FALSE}
+```{r one_samp_perm_ex, exercise=TRUE, exercise.eval = FALSE,exercise.reveal_solution = TRUE}
 
 set.seed(156)
 # הנתונים  
@@ -1251,7 +1252,7 @@ question("מה נכון לגבי ממוצע התפלגות האפס ?",
 ```{r final_q3_2, echo = FALSE}
 
 question_text(
-  "בכמה פרמוטציות התקבל ערך קורלציה גבוה מהערך שהתקבל במדגם?",
+  "בכמה פרמוטציות התקבל ממוצע הפרשים גבוה מהערך שהתקבל במדגם?",
   answer("0", correct = TRUE),
   allow_retry = TRUE,
     
@@ -1259,6 +1260,19 @@ question_text(
   incorrect = "וודאו שהשתמשתם בפרמטרים הנכונים ונסו שוב."
 )
 
+```
+
+
+```{r submit_final, echo = FALSE}
+  question_text(
+    "Please enter the code here",
+    incorrect = "Excercise was submitted!",
+    correct = "Excercise was submitted!",
+    answer(text = "asd",message="DFGDF"),
+    answer(text = "",correct = TRUE),
+    rows = 10,
+    trim = FALSE, allow_retry = TRUE
+  )
 ```
 
 ## משוב 
