@@ -1,5 +1,5 @@
 ---
-title: "Lesson 11: correlations"
+title: "Lesson 11: Correlation and Linear Models"
 author: "Copyright 2025 Psychology Department. Hebrew University of Jerusalem. All rights reserved"
 output:
   learnr::tutorial:

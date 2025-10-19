@@ -1,6 +1,6 @@
 ---
-title: "Lesson 13: bootstrap and permutations"
-author: "Copyright 2024 Psychology Department. Hebrew University of Jerusalem. All rights reserved"
+title: "Lesson 13: Bootstrap and permutations"
+author: "Copyright 2025 Psychology Department. Hebrew University of Jerusalem. All rights reserved"
 output:
   learnr::tutorial:
     progressive: true

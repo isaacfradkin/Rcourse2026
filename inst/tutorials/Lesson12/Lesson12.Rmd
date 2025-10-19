@@ -1,5 +1,5 @@
 ---
-title: "Lesson 12: t-test"
+title: "Lesson 12: T-tests for group comparison"
 author: "Copyright 2025 Psychology Department. Hebrew University of Jerusalem. All rights reserved"
 output:
   learnr::tutorial:
