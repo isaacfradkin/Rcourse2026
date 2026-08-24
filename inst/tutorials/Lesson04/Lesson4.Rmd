@@ -46,7 +46,7 @@ library(Rcourse)
 
 
 knitr::opts_chunk$set(error = TRUE)
-gradethis::gradethis_setup()
+gradethis::gradethis_setup() 
 
 
 {
@@ -176,7 +176,7 @@ question_text(
 שורות הקוד הבאות מייצרות טבלה זהה לטבלה הקודמת, אבל מגדירה את כל אחד מהוקטורים בנפרד ורק אח"כ מצרפת אותם לכדי טבלה.
 
 
-`תרגיל` ערכו את הפונקציה המייצרת את הטבלה כך שתתווסף עמודה רביעית בשם `gender` ומלאו אותה בערכים
+`תרגיל` ערכו את הפונקציה המייצרת את הטבלה כך שלטבלה `df1` תווסף עמודה רביעית בשם `gender` ומלאו אותה בערכים
 לבחירתכם.
 
 
@@ -408,23 +408,38 @@ df1[rows, columns]
 ```
 
 ```{r exercise4_5_slicing_multi_index-check}
-grade_this(
-  pass_if({
-    user_df = user_object_get("df2")
-    target = df1[c(1,5), c(1,3)]
-    
+grade_this({
+  
+  user_df <- user_object_get("df2")
+  target <- df1[c(1,5), c(1,3)]
+  
+  if (!is.data.frame(user_df) && length(user_df) == 1) {
+    fail("נסו שוב. החיתוך שביצעתם לא החזיר טבלה, אלא את הערך שבתא בודד. כדי לחתוך טבלה, יש להשתמש בווקטור כדי לציין את האינדקסים הרצויים, ולא במספר בודד.")
+  } else if (!is.data.frame(user_df) && length(user_df) > 1) {
+    fail("נסו שוב. החיתוך שביצעתם החזיר וקטור של ערכים, ולא טבלה. כדי לחתוך טבלה, יש לציין גם את האינדקסים של השורות וגם את האינדקסים של העמודות כוקטורים, ולא כערכים בודדים.")
+  } else{
+  
     same_cols <- setequal(names(user_df), names(target))
-    same_values <- setequal(user_df$subject, target$subject)
-    same_cols && same_values
-  }),
-  correct = "יפה מאוד!",
-  incorrect = "נסו שוב"
-)
+    same_rows <- setequal(user_df$subject, target$subject)
+    
+    if (same_cols & same_rows) {
+      pass("יפה מאוד!")
+    } else if (!same_rows & !same_cols) {
+      fail("נסו שוב. הטבלה לא תואמת לזו שהתבקשתם לייצר")
+    } else if (!same_rows) { 
+      fail("נסו שוב. בחרתם בעמודות הנכונות, אבל השורות לא תואמות לאלו שהתבקשתם לחתוך (התצפיות של נבדקים 1 ו5)")
+    } else if (!same_cols) {
+      fail("נסו שוב. בחרתם את השורות הנכונות - אבל העמודות לא תואמות לאלו שהתבקשתם לחתוך (מספר הנבדק וציון המסוגלות העצמית)")
+    } else {
+      fail("נסו שוב. הטבלה לא תואמת לזו שהתבקשתם לייצר.")
+    }
+  }
+})
 
 ```
 
 
-## חיתוך עמודות
+## חיתוך ויצירת עמודות
 
 ניתן לשלוף עמודות גם באמצעות פקד שליפת העמודות המיוצג על ידי התו `$`.
 
@@ -515,7 +530,7 @@ print(df1)
 
 
 `תרגיל`
-הוסיפו לטבלה עמודה בשם `high_self_efficacy` המכילה את הערך `TRUE` אם ציון תחושת המסוגלות העצמית של הנבדק גבוה מ2.5 ו`FALSE` אם הוא נמוך או שווה ל2.5.
+הוסיפו לטבלה עמודה בשם `high_se` המכילה את הערך `TRUE` אם ציון תחושת המסוגלות העצמית של הנבדק גבוה מ2.5 ו`FALSE` אם הוא נמוך או שווה ל2.5.
 
 
 ```{r exercise5_5_dolar, exercise=TRUE, exercise.eval = FALSE,  exercise.setup = "prepare-df1"}
@@ -548,7 +563,7 @@ library(dplyr)
 
 grade_result(
   pass_if(~identical(.result,
-                     df1 %>% mutate(high_self_efficacy = self_efficacy_score > 2.5))),
+                     df1 %>% mutate(high_se = self_efficacy_score > 2.5))),
   
     correct="נהדר!", 
   incorrect = "נסו שוב"
@@ -832,20 +847,16 @@ question(
 ## תרגיל
 
 ![](images/Rstudio logo.png){width="100"}   
+את התרגיל המסכם אתם מתבקשים לפתור בRstudio.
+כדי לעבוד על הקוד בRstudio תצטרכו לפתוח קובץ סקריפט ולהעתיק אליו את הקוד מתיבת הקוד הבאה. כך תוכלו לערוך את הקוד, להריץ אותו ולוודא שהוא עובד.
 
-העתיקו את הקוד הבא לסביבת העבודה שלכם והשלימו אותו בהתאם להערות בגוף הקוד.
-
-
-בסיום העבודה, העתיקו את הקוד שכתבתם חזרה לחלונית הקוד, למעט שורות הקוד העוסקות בייבוא הנתונים (הטבלה כבר טענה מראש, תחת השם "need_for_cognition").
-
+כשסיימתם להשלים את הקוד, היעזרו בהדפסה שבסוף הקוד כדי לענות על השאלה שבסוף הדף.
 
 ```{r summary_exercise, exercise=TRUE, exercise.eval = FALSE, exercise.setup = "prepare-df1"}
 library(readr)
 
 # הורידו את הקובץ מהמודל וייבוא אותו לסביבת העבודה שלכם
 need_for_cognition = ___________________    
-
-# ~~~ מחקו את כל השורות  מעל נקודה זו בהעתקה חזרה לחלונית הקוד   ~~~ 
 
 # הדפיסו את שמות העמודות בטבלה
 column_names = ___________________________
@@ -879,11 +890,17 @@ table1$nfc_06 = ____________________
 
 
 #  כעת, צרו עמודה חדשה שתכיל את סכום ששת העמודות עבור כל נבדק
+#  סכמו את העמודות באמצעות פקד החיבור (+)
 table1$nfc = ___________________________________________________________________
 
 # שלפו את עמודה זו ושמרו אותה באובייקט הבא:
 nfc_score_column =  ____________
 
+# הדפסת ממוצע הציונים
+# ישנם ערכים חסרים בטבלה, ולכן נחשב את הממוצע תוך התעלמות מהם באמצעות
+# na.rm = TRUE
+
+print(mean(nfc_score_column, na.rm = TRUE))
 ```
 
 
@@ -922,20 +939,23 @@ table1$nfc = table1$nfc_01 +table1$nfc_02 +table1$nfc_03 +table1$nfc_04 +table1$
 
 # שלפו את עמודה זו ושמרו אותה באובייקט הבא:
 nfc_score_column = table1$nfc
+print(mean(nfc_score_column, na.rm = TRUE))
 ```
 
-```{r summary_exercise-check}
-grade_this({
-  
-   if (user_object_get("number_of_columns") != 7){
-     fail("מספר העמודות אינו נכון")}
-   else if(user_object_get("number_of_rows") != 100) {
-     fail("מספר השורות אינו נכון")}
-   else if(!identical(user_object_get("nfc_score_column"), solution_object_get("nfc_score_column"))) {
-     fail("טעות בחישוב עמודת הציונים או בשליפתה")}
-   else {pass("עבודה מצוינת!")}
-}
-   )
+
+```{r summary_mean, echo = FALSE}
+
+question_text(
+  "מה ממוצע ציוני השאלון עבור 100 הנבדקים הראשונים בטבלה? עגלו את התוצאה לשני מקומות לאחר הנקודה העשרונית",
+  answer("18.37", correct = TRUE),
+  answer("18.37374", correct = F, message = "האם עיגלתם את התוצאה לשני מקומות לאחר הנקודה העשרונית?"),
+  answer("18", correct = F, message = "האם עיגלתם את התוצאה לשני מקומות לאחר הנקודה העשרונית?"),
+  allow_retry = TRUE,
+    
+  correct="נכון מאוד", 
+  incorrect = "נסו שוב"
+)
+
 ```
 
 
@@ -954,6 +974,19 @@ question(#"כמה קשה הייתה היחידה עבורך?",
          answer("מאתגרת"     ,correct=TRUE,  message = "תגובתך: מאתגרת"),
          answer("קשה"        ,correct=TRUE,  message = "תגובתך: קשה"),
          answer("קשה מאוד"   ,correct=TRUE,  message = "תגובתך: קשה מאוד"),
+         correct = "",
+         incorrect = "",
+         allow_retry = TRUE
+)
+```
+
+```{r survey_q_tirgul, echo = FALSE}
+question("האם השתתפת בתרגול שהוקדש ליחידה זו?",
+         type="single",
+         answer("כן"        ,correct=TRUE,  message = "תגובתך: כן"),
+         answer("לא"    ,correct=TRUE,  message = "תגובתך: לא"),
+         answer("התרגול עוד לא התקיים"     ,correct=TRUE,  message = "תגובתך: התרגול עוד לא התקיים"),
+         answer("לא,אבל צפיתי בהקלטה"        ,correct=TRUE,  message = "תגובתך: לא,אבל צפיתי בהקלטה"),
          correct = "",
          incorrect = "",
          allow_retry = TRUE
